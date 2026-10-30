@@ -12,18 +12,19 @@ Copy and paste this entire prompt into Google Stitch first to establish the desi
 ```
 Create a design system/style guide for the EduLink app with the following specifications. Use ONLY these values from the PRD - do not invent anything.
 
-COLOR PALETTE (from PRD Section 9.1):
-- Primary: #1F4E79 (Buttons, links, CTAs)
-- Primary-hover: #163a5f (Button hover)
+COLOR PALETTE (from PRD Section 9.1 - updated for collective learning platform):
+- Primary: #2563EB (Buttons, links, CTAs - trust/institutional blue)
+- Primary-hover: #1D4ED8 (Button hover)
 - Background: #FFFFFF (Page background)
-- Surface: #F7F9FC (Cards/panels)
-- Text-primary: #1A1A1A (Body text)
-- Text-secondary: #4F4F4F (Secondary text)
-- Border: #E5E7EB (Inputs/borders)
+- Surface: #F8FAFC (Cards/panels - soft slate)
+- Text-primary: #0F172A (Body text - slate 900)
+- Text-secondary: #475569 (Secondary text - slate 600)
+- Border: #E2E8F0 (Inputs/borders - slate 200)
 - Success: #22C55E (Approved/success)
 - Warning: #F59E0B (Pending/warnings)
 - Danger: #DC2626 (Errors/reject/report)
-- Info: #3B82F6 (Info states)
+- Info: #06B6D4 (Info states - cyan accent for knowledge sharing)
+- Accent: #7C3AED (Subtle accent for community/learning elements - violet)
 
 TYPOGRAPHY (from PRD Section 9.2):
 - Font family: Inter, system-ui, -apple-system, sans-serif
@@ -89,7 +90,7 @@ Spec (PRD 8.1): Purpose - Authenticate existing users with email+password. Prima
 Layout (Normal):
 - Top app bar: "EduLink" (centered or left, consistent across screens)
 - AuthForm (C9, variant login): "Email" input (placeholder "e.g. thandi@up.ac.za"), "Password" input (type password)
-- "Log in" button (Primary #1F4E79)
+- "Log in" button (Primary #2563EB)
 - "Don't have an account? Register" link
 - Hint: "We flag .ac.za emails for student prioritization"
 
