@@ -1,3 +1,5 @@
+import { BrowseNotes } from "@/components/browse/browse-notes"
+
 export default function BrowsePage() {
   return (
     <div className="min-h-screen bg-slate-50">
@@ -13,9 +15,7 @@ export default function BrowsePage() {
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-          <p className="text-slate-600">Browse notes coming soon. Filters by institution, course/module, year, and tags.</p>
-        </div>
+        <BrowseNotes />
       </main>
     </div>
   )
