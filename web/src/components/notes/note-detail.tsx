@@ -133,3 +133,5 @@ export function NoteDetail({ noteId }: { noteId: string }) {
     </div>
   )
 }
+
+            <a href={`/api/notes/${noteId}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>
