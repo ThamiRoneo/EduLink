@@ -90,6 +90,7 @@ export function NoteDetail({ noteId }: { noteId: string }) {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href={`/api/notes/${noteId}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>
           <button onClick={toggleFavorite} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Favorite</button>
           <button onClick={() => setReportOpen(true)} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Report</button>
         </div>
