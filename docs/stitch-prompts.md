@@ -3,7 +3,7 @@
 Generated from: docs/App Concept Docs/EduLink - PRD.md  
 Date: 2026-10-30  
 Platform: Web-first, iOS and Android (v1)  
-Design target: 360 × 800 px (mobile first)
+Design target: Web first and mobile (responsive - 360×800px mobile base, desktop responsive)
 
 ## 1. Style Guide Prompt
 
@@ -68,7 +68,7 @@ SHARED COMPONENTS (from PRD Section 8.4):
 - C10 EmptyState (default with message + optional CTA)
 - C11 Toast/Notification (success, error, info, auto-dismiss)
 
-Show each component in all variants side by side with labels. Ensure all text meets WCAG contrast standards (>=4.5:1). Use mobile-first approach, 360x800px base.
+Show each component in all variants side by side with labels. Ensure all text meets WCAG contrast standards (>=4.5:1). Use web-first and mobile approach, responsive from 360×800px mobile base to desktop.
 ```
 
 
@@ -77,7 +77,7 @@ Show each component in all variants side by side with labels. Ensure all text me
 
 ### 2.1 S1 — Login
 ```
-Design screen "S1" (Login) for EduLink Android app at 360 × 800 px.
+Design screen "S1" (Login) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse the style guide and shared components exactly. Keep the header identical to my other screens.
 - Include every element in the order listed. Use exact labels and messages in quotation marks.
 - Fill with South African sample content. Never use lorem ipsum.
@@ -109,7 +109,7 @@ TODOs: None
 
 ### 2.2 S2 — Register
 ```
-Design screen "S2" (Register) for EduLink Android app at 360 × 800 px.
+Design screen "S2" (Register) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide and components. Keep header identical.
 - Use exact labels/messages in quotes. South African sample content.
 - Show all states.
@@ -137,7 +137,7 @@ TODOs: None
 
 ### 2.3 S3 — Upload
 ```
-Design screen "S3" (Upload) for EduLink Android app at 360 × 800 px.
+Design screen "S3" (Upload) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide and components. Keep header identical.
 - Enforce PDF/DOCX only, max 100MB.
 
@@ -166,7 +166,7 @@ TODOs: None
 
 ### 2.4 S4 — Home/Browse
 ```
-Design screen "S4" (Home/Browse) for EduLink Android app at 360 × 800 px.
+Design screen "S4" (Home/Browse) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide and components. Keep header and bottom nav identical across screens.
 - Include filters.
 
@@ -195,7 +195,7 @@ TODOs: None
 
 ### 2.5 S5 — Search results
 ```
-Design screen "S5" (Search results) for EduLink Android app at 360 × 800 px.
+Design screen "S5" (Search results) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 
 Spec: Filtered results list. Features F4,F9. US3.
@@ -221,7 +221,7 @@ TODOs: None
 
 ### 2.6 S6 — Note detail
 ```
-Design screen "S6" (Note detail) for EduLink Android app at 360 × 800 px.
+Design screen "S6" (Note detail) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 
 Spec: View note details, ratings/reviews, actions. Features F5,F6,F7,F8,F9,F10. US3,US4,US5.
@@ -251,7 +251,7 @@ TODOs: None
 
 ### 2.7 S7 — Favorites
 ```
-Design screen "S7" (Favorites) for EduLink Android app at 360 × 800 px.
+Design screen "S7" (Favorites) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 
 Spec: Saved favorite notes. Features F10. US7.
@@ -275,7 +275,7 @@ TODOs: None
 
 ### 2.8 S8 — Profile
 ```
-Design screen "S8" (Profile) for EduLink Android app at 360 × 800 px.
+Design screen "S8" (Profile) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 
 Spec: User profile and tabs. Features F1,F11. US1,US7.
@@ -301,7 +301,7 @@ TODOs: None
 
 ### 2.9 S9 — My uploads
 ```
-Design screen "S9" (My uploads) for EduLink Android app at 360 × 800 px.
+Design screen "S9" (My uploads) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 
 Spec: Track upload status. Features F2,F13. US2.
@@ -328,7 +328,7 @@ TODOs: None
 
 ### 2.10 S10 — Moderation queue
 ```
-Design screen "S10" (Moderation queue) for EduLink Android app at 360 × 800 px.
+Design screen "S10" (Moderation queue) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base.
 - Reuse style guide/components. Keep header and bottom nav identical.
 - Moderator/Admin only.
 
@@ -360,7 +360,7 @@ TODOs: None
 
 ### 3.1 M1 — Report modal
 ```
-Design modal "M1" (Report modal) for EduLink Android app at 360 × 800 px (overlay on S6).
+Design modal "M1" (Report modal) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base (overlay on S6).
 - Reuse style guide and components.
 - Overlay with semi-transparent background.
 
@@ -389,7 +389,7 @@ TODOs: None
 
 ### 3.2 M2 — Rating/review modal
 ```
-Design modal "M2" (Rating/review modal) for EduLink Android app at 360 × 800 px (overlay on S6).
+Design modal "M2" (Rating/review modal) for EduLink (web-first and mobile, responsive) at 360 × 800 px mobile base (overlay on S6).
 - Reuse style guide and components.
 
 Spec: Rate and/or review note. Features F6,F7. US4. Trigger: S6 Rate/Review button.
