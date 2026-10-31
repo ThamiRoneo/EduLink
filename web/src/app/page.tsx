@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-const INSTITUTIONS = ["University of Pretoria", "University of Cape Town", "University of the Witwatersrand", "Rhodes University", "Stellenbosch University", "University of KwaZulu-Natal"];
+const INSTITUTIONS = ["University of Pretoria", "University of Cape Town", "University of the Witwatersrand", "Rhodes University", "Stellenbosch University", "University of KwaZulu-Natal", "North-West University"];
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -37,8 +37,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen" style={{ fontFamily: "'Chivo', system-ui, sans-serif" }}>
-      <header className="border-b border-black/10 bg-[#cbe4f2]">
+    <main className="min-h-screen bg-background" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <header className="border-b border-border bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
