@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { usePathname } from "next/navigation"
 
 export default function AppLayout({
   children,
@@ -12,10 +13,16 @@ export default function AppLayout({
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
+  const pathname = usePathname()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [supabase])
+
+  const linkClass = (path: string) =>
+    pathname?.startsWith(path)
+      ? "text-primary font-medium"
+      : "text-slate-700 hover:text-primary"
 
   return (
     <div>
@@ -28,19 +35,19 @@ export default function AppLayout({
             <span className="font-bold text-slate-900">EduLink</span>
           </Link>
           <div className="hidden md:flex items-center gap-4 text-sm">
-            <Link href="/browse" className="text-slate-700 hover:text-primary">Browse</Link>
-            <Link href="/upload" className="text-slate-700 hover:text-primary">Upload</Link>
-            <Link href="/my-uploads" className="text-slate-700 hover:text-primary">My Uploads</Link>
-            <Link href="/favorites" className="text-slate-700 hover:text-primary">Favorites</Link>
+            <Link href="/browse" className={linkClass("/browse")}>Browse</Link>
+            <Link href="/upload" className={linkClass("/upload")}>Upload</Link>
+            <Link href="/my-uploads" className={linkClass("/my-uploads")}>My Uploads</Link>
+            <Link href="/favorites" className={linkClass("/favorites")}>Favorites</Link>
             {user ? (
-              <Link href="/profile" className="text-slate-700 hover:text-primary" aria-label="Profile">
+              <Link href="/profile" className={pathname?.startsWith("/profile") ? "text-primary" : "text-slate-700 hover:text-primary"} aria-label="Profile">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </Link>
             ) : (
-              <Link href="/login" className="text-slate-700 hover:text-primary">Log in</Link>
+              <Link href="/login" className={linkClass("/login")}>Log in</Link>
             )}
           </div>
         </div>
