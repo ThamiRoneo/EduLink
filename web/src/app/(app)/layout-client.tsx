@@ -49,12 +49,9 @@ export default function AppLayoutClient({
       <header className="border-b border-border bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-              <span className="text-white font-bold text-sm">E</span>
-            </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">EduLink</h1>
-              <p className="text-xs text-muted-foreground">Academic Network</p>
+              <h1 className="text-lg font-black uppercase tracking-tight text-black">EduLink</h1>
+              <p className="text-xs text-black/70">Academic Network</p>
             </div>
           </Link>
           <div className="hidden md:flex items-center gap-4 text-sm">

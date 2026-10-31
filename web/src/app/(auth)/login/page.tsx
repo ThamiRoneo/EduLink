@@ -8,12 +8,9 @@ export default function LoginPage() {
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-                <span className="text-white font-bold text-sm">E</span>
-              </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">EduLink</h1>
-                <p className="text-xs text-slate-500">Academic Network</p>
+                <h1 className="text-lg font-black uppercase tracking-tight text-black">EduLink</h1>
+                <p className="text-xs text-black/70">Academic Network</p>
               </div>
             </div>
             <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hidden sm:inline">UP / Wits / NWU / UCT</span>

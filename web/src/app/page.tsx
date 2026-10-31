@@ -76,9 +76,6 @@ export default function Home() {
       <header className="border-b border-border bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-white font-bold text-sm">E</span>
-            </div>
             <div>
               <h1 className="text-lg font-black uppercase tracking-tight text-black">EduLink</h1>
               <p className="text-xs text-black/70">Academic Network</p>
