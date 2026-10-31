@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -44,8 +45,12 @@ export function LoginForm() {
       </div>
       {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">{error}</div>}
       <button type="submit" disabled={loading} className="w-full bg-primary text-white py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-        {loading ? "Signing in..." : "Log in"}
+        {loading ? "Logging in..." : "Log in"}
       </button>
+      <div className="text-center text-sm">
+        <span className="text-slate-600">Don't have an account? </span>
+        <Link href="/register" className="text-blue-600 font-medium hover:underline">Register</Link>
+      </div>
     </form>
   )
 }

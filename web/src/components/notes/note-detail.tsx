@@ -78,8 +78,8 @@ export function NoteDetail({ noteId }: { noteId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">{note.title}</h1>
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">{note.title}</h1>
         <div className="text-sm text-slate-600 space-y-1 mb-4">
           <p>{note.institution} • {note.course_code} • {note.course_name}</p>
           <p>Year: {note.year} • Views: {note.view_count || 0}</p>
@@ -90,13 +90,13 @@ export function NoteDetail({ noteId }: { noteId: string }) {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`/api/notes/${noteId}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>
+            <a href={`/api/notes/${note.id}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>
           <button onClick={toggleFavorite} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Favorite</button>
           <button onClick={() => setReportOpen(true)} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Report</button>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg p-6">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-4">Rate this note</h2>
         <div className="flex gap-2 mb-4">
           {[1,2,3,4,5].map((s) => (
@@ -106,7 +106,7 @@ export function NoteDetail({ noteId }: { noteId: string }) {
         <button onClick={submitRating} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Submit rating</button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg p-6">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-4">Leave a review</h2>
         <textarea value={review} onChange={(e) => setReview(e.target.value)} maxLength={500} placeholder="Share your thoughts..." className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-2" rows={3} />
         <p className="text-xs text-slate-500 mb-3">{review.length}/500</p>
@@ -115,7 +115,7 @@ export function NoteDetail({ noteId }: { noteId: string }) {
 
       {reportOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-md w-full p-4 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Report this note</h2>
             <select value={reportCategory} onChange={(e) => setReportCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-3">
               <option>Abuse</option>
@@ -134,5 +134,3 @@ export function NoteDetail({ noteId }: { noteId: string }) {
     </div>
   )
 }
-
-            <a href={`/api/notes/${noteId}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>

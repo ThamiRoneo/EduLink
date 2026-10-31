@@ -1,8 +1,7 @@
-"use client"
-
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export function RegisterForm() {
   const [displayName, setDisplayName] = useState("")
@@ -62,6 +61,14 @@ export function RegisterForm() {
       <button type="submit" disabled={loading} className="w-full bg-primary text-white py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
         {loading ? "Creating account..." : "Register"}
       </button>
+      <div className="text-center text-sm">
+        <span className="text-slate-600">Already have an account? </span>
+        <Link href="/login" className="text-blue-600 font-medium hover:underline">Log in</Link>
+      </div>
+      <div className="text-center text-sm">
+        <span className="text-slate-600">Already have an account? </span>
+        <Link href="/login" className="text-blue-600 font-medium hover:underline">Log in</Link>
+      </div>
     </form>
   )
 }

@@ -100,10 +100,10 @@ export function UploadForm() {
         {file && <p className="text-xs text-slate-600 mt-1">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-slate-900 mb-1">Title</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Calculus 1: Integration Techniques" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-slate-900 mb-1">Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Institution</label>
@@ -121,9 +121,9 @@ export function UploadForm() {
           <label className="block text-sm font-semibold text-slate-900 mb-1">Year</label>
           <input type="text" value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 2025" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-slate-900 mb-1">Tags (comma separated)</label>
-          <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. calculus, integration, exam-prep" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-slate-900 mb-1">Tags (comma separated)</label>
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. calculus, past-paper, exam" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
         </div>
       </div>
 

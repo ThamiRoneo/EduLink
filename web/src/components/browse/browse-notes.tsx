@@ -54,7 +54,7 @@ export function BrowseNotes() {
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <input placeholder="Institution" value={filters.institution} onChange={(e) => setFilters({ ...filters, institution: e.target.value })} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
           <input placeholder="Course/Module code" value={filters.course_code} onChange={(e) => setFilters({ ...filters, course_code: e.target.value })} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
           <input placeholder="Year" value={filters.year} onChange={(e) => setFilters({ ...filters, year: e.target.value })} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
@@ -69,7 +69,7 @@ export function BrowseNotes() {
           <p className="text-slate-600">No notes match your filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {notes.map((note) => (
             <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
               <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">{note.title}</h3>
