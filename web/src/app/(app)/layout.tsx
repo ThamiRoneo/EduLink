@@ -7,7 +7,7 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50">{children}</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background">{children}</div>}>
       <AppLayoutClient>{children}</AppLayoutClient>
     </Suspense>
   )
