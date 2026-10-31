@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { RegisterForm } from "@/components/auth/register-form"
 
@@ -16,7 +18,7 @@ export default function RegisterPage() {
                 <p className="text-xs text-slate-500">EduLink Academic Network</p>
               </div>
             </div>
-            <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hidden sm:inline">UP / Wits / NWU / UCT</span>
+            <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded">UP / Wits / UCT</span>
           </div>
           <div className="p-4 sm:p-6">
             <div className="mb-6">
