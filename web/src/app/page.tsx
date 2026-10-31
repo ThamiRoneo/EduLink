@@ -29,7 +29,11 @@ const CAMPUS_SLIDES = [
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [open, setOpen] = useState(false);
+  const [filterInst, setFilterInst] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
