@@ -24,6 +24,14 @@ const CAMPUS_SLIDES = [
     src: "/edulink-assets/nwu.jpg",
     alt: "North-West University Potchefstroom campus",
   },
+  {
+    src: "/edulink-assets/tugwell-hall-cape-town-south-africa.jpg",
+    alt: "University of Cape Town campus",
+  },
+  {
+    src: "/edulink-assets/university-of-pretoria-campus-plan-1930.jpg",
+    alt: "University of Pretoria",
+  },
 ];
 
 export default function Home() {
