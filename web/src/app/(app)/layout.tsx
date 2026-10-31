@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function AppLayout({
   children,
@@ -9,6 +10,12 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+  }, [supabase])
 
   return (
     <div>
@@ -25,12 +32,16 @@ export default function AppLayout({
             <Link href="/upload" className="text-slate-700 hover:text-primary">Upload</Link>
             <Link href="/my-uploads" className="text-slate-700 hover:text-primary">My Uploads</Link>
             <Link href="/favorites" className="text-slate-700 hover:text-primary">Favorites</Link>
-            <Link href="/profile" className="text-slate-700 hover:text-primary" aria-label="Profile">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </Link>
+            {user ? (
+              <Link href="/profile" className="text-slate-700 hover:text-primary" aria-label="Profile">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </Link>
+            ) : (
+              <Link href="/login" className="text-slate-700 hover:text-primary">Log in</Link>
+            )}
           </div>
         </div>
         {false && open && (
