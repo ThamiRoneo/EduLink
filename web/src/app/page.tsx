@@ -75,12 +75,12 @@ export default function Home() {
     <main className="min-h-screen bg-background" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <header className="border-b border-border bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div>
               <h1 className="text-lg font-black uppercase tracking-tight text-black">EduLink</h1>
               <p className="text-xs text-black/70">Academic Network</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             {user ? (
               <div className="relative" ref={menuRef}>
