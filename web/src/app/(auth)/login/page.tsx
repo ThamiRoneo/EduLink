@@ -12,8 +12,8 @@ export default function LoginPage() {
                 <span className="text-white font-bold text-sm">E</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">EduLink</h1>
-                <p className="text-xs text-slate-500">Academic Network</p>
+                <h1 className="text-lg font-bold text-foreground">EduLink</h1>
+                <p className="text-xs text-muted-foreground">Academic Network</p>
               </div>
             </div>
             <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hidden sm:inline">UP / Wits / NWU / UCT</span>
