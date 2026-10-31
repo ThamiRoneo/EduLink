@@ -98,7 +98,7 @@ export default function Home() {
                 <Link href="/browse" className="bg-primary text-white px-6 py-3 text-center rounded-md hover:bg-primary/90">
                   Browse notes
                 </Link>
-                <Link href="/upload" className="bg-primary text-white px-6 py-3 text-center rounded-md hover:bg-primary/90">
+                <Link href="/upload" className="bg-black text-white px-6 py-3 text-center rounded-md hover:bg-black/90">
                   Upload notes
                 </Link>
               </div>
