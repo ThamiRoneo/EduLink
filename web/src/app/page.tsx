@@ -51,7 +51,7 @@ export default function Home() {
             Share and Discover Academic Notes Across South African Universities
           </h2>
           <p className="text-base sm:text-lg text-muted-foreground mb-8">
-            EduLink connects students from UP, Wits, UCT and more to share lecture notes, study guides, and resources with quality assurance through community moderation.
+            EduLink connects students from UP, Wits, NWU, UCT and more to share lecture notes, study guides, and resources with quality assurance through community moderation.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link href="/browse" className="w-full sm:w-auto bg-primary text-white px-6 py-3 rounded-md hover:bg-primary/90 text-center">
