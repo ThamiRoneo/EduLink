@@ -7,17 +7,40 @@ import { useRouter } from "next/navigation";
 
 const INSTITUTIONS = ["University of Pretoria", "University of Cape Town", "University of the Witwatersrand", "Rhodes University", "Stellenbosch University", "University of KwaZulu-Natal", "North-West University"];
 
+const CAMPUS_SLIDES = [
+  {
+    src: "/edulink-assets/university-of-pretoria-campus-plan-1930.jpg",
+    alt: "Historic map of University of Pretoria campus",
+  },
+  {
+    src: "/edulink-assets/tugwell-hall-cape-town-south-africa.jpg",
+    alt: "Tugwell Hall, University of Cape Town",
+  },
+  {
+    src: "/edulink-assets/south-africa-east-london-rhodes-fort-hare.jpg",
+    alt: "Rhodes University / Fort Hare historic building",
+  },
+  {
+    src: "/edulink-assets/nwu.jpg",
+    alt: "North-West University Potchefstroom campus",
+  },
+];
+
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [open, setOpen] = useState(false);
-  const [filterInst, setFilterInst] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
-  const router = useRouter();
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, [supabase]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % CAMPUS_SLIDES.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -104,8 +127,23 @@ export default function Home() {
               </div>
             </div>
             <div className="relative">
-              <img src="/edulink-assets/university-of-pretoria-campus-plan-1930.jpg" alt="Historic map of University of Pretoria campus" className="w-full h-[320px] sm:h-[420px] object-cover border border-black/10" loading="eager" />
+              <img
+                src={CAMPUS_SLIDES[currentSlide].src}
+                alt={CAMPUS_SLIDES[currentSlide].alt}
+                className="w-full h-[320px] sm:h-[420px] object-cover rounded-lg border border-border transition-opacity duration-700"
+                loading="eager"
+              />
               <div className="absolute bottom-3 left-3 bg-accent text-accent-foreground text-xs px-2 py-1 rounded">SA campuses</div>
+              <div className="absolute bottom-3 right-3 flex gap-1">
+                {CAMPUS_SLIDES.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`w-2 h-2 rounded-full ${idx === currentSlide ? "bg-white" : "bg-white/50"}`}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
