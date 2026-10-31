@@ -147,9 +147,9 @@ export default function Home() {
               <div className="font-bold text-black">Past Papers & Summaries</div>
             </div>
             <div className="bg-white border border-black/10 p-4">
-              <div className="w-full h-[160px] bg-[#cbe4f2] mb-3 flex items-center justify-center text-black/60 text-xs uppercase tracking-tight">Wits • Stellenbosch • UKZN • UNISA</div>
-              <div className="text-xs uppercase tracking-tight text-black/60 mb-1">More Institutions</div>
-              <div className="font-bold text-black">Browse all universities</div>
+              <img src="/edulink-assets/nwu.jpg" alt="North-West University Potchefstroom campus" className="w-full h-[160px] object-cover mb-3" loading="lazy" />
+              <div className="text-xs uppercase tracking-tight text-black/60 mb-1">North-West University</div>
+              <div className="font-bold text-black">Potchefstroom Campus Notes</div>
             </div>
           </div>
           <div className="mt-6">
