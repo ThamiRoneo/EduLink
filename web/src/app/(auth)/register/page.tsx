@@ -5,11 +5,13 @@ import { RegisterForm } from "@/components/auth/register-form"
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
-      <div className="w-full max-w-md mx-auto mb-4">
-        <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">← Back</Link>
-      </div>
-      <div className="flex items-center justify-center">
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">← Back</Link>
+        </div>
+      </header>
+      <div className="p-4 flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
