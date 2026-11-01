@@ -57,16 +57,12 @@ export function RegisterForm() {
       </div>
       <div className="bg-cyan-50 border border-cyan-200 rounded-md p-3 flex items-start gap-2">
         <div className="w-4 h-4 mt-0.5 rounded-full bg-cyan-500 flex-shrink-0" />
-        <p className="text-xs text-cyan-900">.ac.za student emails are prioritized</p>
+        <p className="text-xs text-cyan-900 text-center w-full">We flag .ac.za emails for student prioritization</p>
       </div>
       {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">{error}</div>}
       <button type="submit" disabled={loading} className="w-full bg-primary text-white py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
         {loading ? "Creating account..." : "Register"}
       </button>
-      <div className="text-center text-sm">
-        <span className="text-slate-600">Already have an account? </span>
-        <Link href="/login" className="text-blue-600 font-medium hover:underline">Log in</Link>
-      </div>
       <div className="text-center text-sm">
         <span className="text-slate-600">Already have an account? </span>
         <Link href="/login" className="text-blue-600 font-medium hover:underline">Log in</Link>
