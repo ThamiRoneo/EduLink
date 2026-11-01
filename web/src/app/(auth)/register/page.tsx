@@ -16,14 +16,14 @@ export default function RegisterPage() {
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-center">
               <Link href="/" className="flex items-center gap-3">
-                <div>
+                <div className="text-center">
                   <h1 className="text-lg font-black uppercase tracking-tight text-black">EduLink</h1>
                   <p className="text-xs text-black/70">Academic Network</p>
                 </div>
               </Link>
             </div>
             <div className="p-4 sm:p-6">
-              <div className="mb-6">
+              <div className="mb-6 text-center">
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">Create an account</h2>
                 <p className="text-sm text-slate-600">Join South Africa's collective university study and resource circle.</p>
               </div>
