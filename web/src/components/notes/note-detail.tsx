@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
-export function NoteDetail({ noteId }: { noteId: string }) {
+function NoteDetailContent({ noteId }: { noteId: string }) {
   const [note, setNote] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
   const [rating, setRating] = useState(0)
@@ -132,5 +132,13 @@ export function NoteDetail({ noteId }: { noteId: string }) {
         </div>
       )}
     </div>
+  )
+}
+
+export function NoteDetail({ noteId }: { noteId: string }) {
+  return (
+    <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+      <NoteDetailContent noteId={noteId} />
+    </Suspense>
   )
 }

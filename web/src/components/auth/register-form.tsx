@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -33,7 +35,7 @@ export function RegisterForm() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push("/browse")
+      router.push("/")
       router.refresh()
     }
   }
