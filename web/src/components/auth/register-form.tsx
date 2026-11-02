@@ -126,7 +126,7 @@ export function RegisterForm() {
           </button>
         </div>
       </div>
-      <div className="bg-cyan-50 border border-cyan-200 rounded-md p-3 flex items-center justify-center gap-2">
+      <div className="bg-cyan-50 border border-cyan-200 rounded-md p-3 flex items-center gap-2 justify-center text-center">
         <div className="w-4 h-4 rounded-full bg-cyan-500 flex-shrink-0" />
         <p className="text-xs text-cyan-900">We flag .ac.za emails for student prioritization</p>
       </div>
