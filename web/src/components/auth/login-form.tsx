@@ -78,7 +78,7 @@ export function LoginForm() {
         {loading ? "Logging in..." : "Log in"}
       </button>
       <div className="text-center text-sm">
-        <span className="text-slate-600">Don't have an account? </span>
+        <span className="text-slate-600">Don&apos;t have an account? </span>
         <Link href="/register" className="text-blue-600 font-medium hover:underline">Register</Link>
       </div>
     </form>
