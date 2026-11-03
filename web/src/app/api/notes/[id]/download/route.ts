@@ -24,5 +24,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   
+  try {
+    await supabase.rpc("increment_download_count", { note_id: id })
+  } catch (_) {
+    await supabase
+      .from("notes")
+      .update({ download_count: (note.download_count || 0) + 1 })
+      .eq("id", id)
+  }
+  
   return NextResponse.redirect(data.signedUrl)
 }

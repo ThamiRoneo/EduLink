@@ -31,7 +31,7 @@ export default function RegisterPage() {
             <div className="p-4 sm:p-6">
               <div className="mb-6 text-center">
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">Create an account</h2>
-                <p className="text-sm text-slate-600">Join South Africa's collective university study and resource circle.</p>
+                <p className="text-sm text-slate-600">Join South Africa&apos;s collective university study and resource circle.</p>
               </div>
               <RegisterForm />
             </div>

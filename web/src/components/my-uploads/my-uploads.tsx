@@ -35,7 +35,7 @@ export function MyUploads() {
     <div className="space-y-4">
       {uploads.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-          <p className="text-slate-600 mb-4">You haven't uploaded any notes yet.</p>
+          <p className="text-slate-600 mb-4">You haven&apos;t uploaded any notes yet.</p>
           <Link href="/upload" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Upload a note</Link>
         </div>
       ) : (
