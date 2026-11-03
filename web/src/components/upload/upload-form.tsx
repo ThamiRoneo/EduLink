@@ -243,7 +243,6 @@ export function UploadForm() {
       setError(err.message)
       setLoading(false)
       setUploadProgress(0)
-      setLoading(false)
     }
   }
 
