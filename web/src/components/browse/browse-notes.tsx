@@ -22,9 +22,11 @@ type Note = {
   avg_rating: number
   rating_count: number
   view_count: number
+  download_count?: number
   created_at: string
   file_type: string
   file_size: number
+  page_count?: number
   description?: string
   document_type?: string
   uploader_id?: string
@@ -50,6 +52,8 @@ export function BrowseNotes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
+  const [suggestions, setSuggestions] = useState<Note[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [filters, setFilters] = useState({
     q: searchParams.get("q") || "",
     institution: searchParams.get("institution") || "",
@@ -64,13 +68,15 @@ export function BrowseNotes() {
     term: searchParams.get("term") || "",
     lecturer: searchParams.get("lecturer") || "",
     document_type: searchParams.get("document_type") || "",
-  })
-  const [draftFilters, setDraftFilters] = useState(filters)
+    course_id: searchParams.get("course_id") || "",
+  } as any)
+  const [draftFilters, setDraftFilters] = useState(filters as any)
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const [sort, setSort] = useState(searchParams.get("sort") || "recent")
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const [instSuggestions, setInstSuggestions] = useState<string[]>([])
   const [courseSuggestions, setCourseSuggestions] = useState<string[]>([])
@@ -209,6 +215,41 @@ export function BrowseNotes() {
     setLoading(false)
   }, [filters, page, sort, supabase])
 
+  const fetchSuggestions = useCallback(async () => {
+    if (loading || notes.length > 0) return
+    setSuggestionsLoading(true)
+    let query = supabase
+      .from("notes")
+      .select("*, uploader:profiles(display_name, institution_affiliation)")
+      .eq("status", "approved")
+
+    const hasContext = filters.institution || filters.course_code || filters.course_id || filters.faculty || filters.department || filters.tag
+    if (filters.course_id) {
+      query = query.eq("course_id", filters.course_id)
+    } else if (filters.course_code && filters.institution) {
+      query = query.ilike("course_code", `%${filters.course_code}%`).ilike("institution", `%${filters.institution}%`)
+    } else if (filters.course_code) {
+      query = query.ilike("course_code", `%${filters.course_code}%`)
+    } else if (filters.institution) {
+      query = query.ilike("institution", `%${filters.institution}%`)
+    } else if (filters.faculty) {
+      query = query.ilike("faculty", `%${filters.faculty}%`)
+    } else if (filters.department) {
+      query = query.ilike("department", `%${filters.department}%`)
+    } else if (filters.tag) {
+      query = query.contains("tags", [filters.tag])
+    }
+
+    query = query.order("view_count", { ascending: false }).order("avg_rating", { ascending: false }).order("created_at", { ascending: false }).limit(6)
+    const { data } = await query
+    setSuggestions((data || []) as Note[])
+    setSuggestionsLoading(false)
+  }, [loading, notes.length, filters, supabase])
+
+  useEffect(() => {
+    fetchSuggestions()
+  }, [fetchSuggestions])
+
   useEffect(() => {
     updateUrl(filters, page, sort)
     fetchNotes()
@@ -240,9 +281,25 @@ export function BrowseNotes() {
   }
 
   const clearFilters = () => {
-    setFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
-    setDraftFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
+    setFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "", course_id: "" } as any)
+    setDraftFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "", course_id: "" } as any)
     setPage(1)
+  }
+
+  const removeFilter = (key: string) => {
+    setFilters({ ...filters, [key]: "" } as any)
+    setDraftFilters({ ...draftFilters, [key]: "" } as any)
+    if (key === "course_id") {
+      setFilters({ ...filters, course_id: "", course_code: "", institution: "" } as any)
+      setDraftFilters({ ...draftFilters, course_id: "", course_code: "", institution: "" } as any)
+    }
+    setPage(1)
+  }
+
+  const applyMobileFilters = () => {
+    setFilters({ ...draftFilters } as any)
+    setPage(1)
+    setMobileFiltersOpen(false)
   }
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
@@ -255,6 +312,16 @@ export function BrowseNotes() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB"
   }
 
+  const getFileIcon = (fileType?: string) => {
+    const type = (fileType || "").toLowerCase()
+    if (type === "pdf") return "📄"
+    if (type === "docx" || type === "doc") return "📝"
+    if (type === "pptx" || type === "ppt") return "📊"
+    if (type === "xlsx" || type === "xls") return "📈"
+    if (type === "txt") return "📃"
+    return "📁"
+  }
+
   const filteredInst = instSuggestions.filter(s => s.toLowerCase().includes((draftFilters.institution || "").toLowerCase())).slice(0, 8)
   const filteredCourse = courseSuggestions.filter(s => s.toLowerCase().includes((draftFilters.course_code || "").toLowerCase())).slice(0, 8)
   const filteredCatalog = catalogCourses.filter(c => {
@@ -265,7 +332,37 @@ export function BrowseNotes() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+      <div className="md:hidden flex items-center justify-between gap-2">
+        <button onClick={() => setMobileFiltersOpen(true)} className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-white">Filters{hasActiveFilters ? " •" : ""}</button>
+        <div className="flex items-center gap-2">
+          <label htmlFor="sort-mobile" className="text-xs text-slate-600">Sort</label>
+          <select id="sort-mobile" value={sort} onChange={(e) => { setSort(e.target.value); setPage(1) }} className="px-2 py-1 border border-slate-200 rounded-md text-sm">
+            <option value="recent">Most recent</option>
+            <option value="most_viewed">Most viewed</option>
+            <option value="highest_rated">Highest rated</option>
+            <option value="most_downloaded">Most downloaded</option>
+          </select>
+        </div>
+      </div>
+      {hasActiveFilters && (
+        <div className="md:hidden flex flex-wrap gap-2">
+          {filters.q && <button onClick={() => removeFilter("q")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Search: {filters.q} ✕</button>}
+          {(filters as any).course_id && <button onClick={() => { removeFilter("course_id"); setFilters({...(filters as any), course_id:"", course_code:"", institution:""} as any); setDraftFilters({...(draftFilters as any), course_id:"", course_code:"", institution:""} as any); setPage(1) }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Catalog course ✕</button>}
+          {filters.institution && <button onClick={() => removeFilter("institution")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Institution: {filters.institution} ✕</button>}
+          {filters.course_code && !(filters as any).course_id && <button onClick={() => removeFilter("course_code")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Course: {filters.course_code} ✕</button>}
+          {filters.year && <button onClick={() => removeFilter("year")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Year: {filters.year} ✕</button>}
+          {(filters as any).year_level && <button onClick={() => removeFilter("year_level")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Year Level: {(filters as any).year_level} ✕</button>}
+          {filters.tag && <button onClick={() => removeFilter("tag")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Tag: {filters.tag} ✕</button>}
+          {filters.file_type && <button onClick={() => removeFilter("file_type")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Type: {filters.file_type.toUpperCase()} ✕</button>}
+          {filters.document_type && <button onClick={() => removeFilter("document_type")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Document: {filters.document_type} ✕</button>}
+          {filters.faculty && <button onClick={() => removeFilter("faculty")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Faculty/Dept: {filters.faculty} ✕</button>}
+          {filters.department && <button onClick={() => removeFilter("department")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Department: {filters.department} ✕</button>}
+          {filters.semester && <button onClick={() => removeFilter("semester")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Semester: {filters.semester} ✕</button>}
+          {filters.term && <button onClick={() => removeFilter("term")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Term: {filters.term} ✕</button>}
+          {filters.lecturer && <button onClick={() => removeFilter("lecturer")} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Lecturer: {filters.lecturer} ✕</button>}
+        </div>
+      )}
+      <div className="hidden md:block bg-white border border-slate-200 rounded-lg p-4 space-y-3">
         <input placeholder="Search by title or course name..." value={draftFilters.q} onChange={(e) => handleFilterChange("q", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
           <div className="relative sm:col-span-2" ref={catalogRef}>
@@ -378,9 +475,37 @@ export function BrowseNotes() {
       {loading ? (
         <div className="text-center py-8 text-slate-600">Loading...</div>
       ) : notes.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-          <p className="text-slate-600 mb-3">No notes match your filters.</p>
-          <Link href="/upload" className="text-sm text-blue-600 hover:underline">Upload notes for this course</Link>
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <p className="text-slate-600 mb-4 text-center">No notes match your filters.</p>
+          {(suggestionsLoading || suggestions.length > 0) && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-900 text-center">
+                {hasActiveFilters ? "Related/popular notes" : "Popular notes"}
+              </p>
+              {suggestionsLoading ? (
+                <div className="text-center py-4 text-slate-600 text-sm">Loading suggestions...</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {suggestions.map((note) => (
+                    <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                      <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">{note.title}</h3>
+                      <div className="text-xs text-slate-600 space-y-1 mb-2">
+                        <p>{note.course_code} • {note.course_name}</p>
+                        <p className="text-slate-500">{note.institution}{note.year ? ` • ${note.year}` : ""}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>★ {note.avg_rating?.toFixed(1) || "0.0"} ({note.rating_count || 0})</span>
+                        <span>{note.view_count || 0} views</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="text-center mt-4">
+            <Link href="/upload" className="text-sm text-blue-600 hover:underline">Upload notes for this course</Link>
+          </div>
         </div>
       ) : (
         <>
@@ -409,7 +534,10 @@ export function BrowseNotes() {
                   <button onClick={toggleFav} className="absolute top-2 right-2 text-lg" title={isFav ? "Remove from favorites" : "Add to favorites"}>
                     {isFav ? "★" : "☆"}
                   </button>
-                  <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 pr-6">{note.title}</h3>
+                  <div className="flex items-start gap-2 mb-2 pr-6">
+                    <span className="text-lg leading-none" title={note.file_type?.toUpperCase()}>{getFileIcon(note.file_type)}</span>
+                    <h3 className="font-semibold text-slate-900 line-clamp-2 flex-1">{note.title}</h3>
+                  </div>
                   <div className="text-xs text-slate-600 space-y-1 mb-2">
                     <p>{note.course_code} • {note.course_name}</p>
                     <p className="text-slate-500">{cred}{yearCred ? ` • ${yearCred}` : ""}</p>
@@ -419,13 +547,13 @@ export function BrowseNotes() {
                       <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded">{note.document_type}</span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
                     <span>★ {note.avg_rating?.toFixed(1) || "0.0"} ({note.rating_count || 0})</span>
-                    <span>{note.view_count || 0} views</span>
+                    <span>{note.view_count || 0} views • {note.download_count || 0} downloads</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                    <span className="uppercase">{note.file_type}</span>
-                    <span>{formatFileSize(note.file_size)}</span>
+                    <span className="uppercase flex items-center gap-1">{getFileIcon(note.file_type)} {note.file_type}</span>
+                    <span>{formatFileSize(note.file_size)}{note.page_count ? ` • ${note.page_count} ${note.page_count === 1 ? "page" : "pages"}` : ""}</span>
                   </div>
                   {note.tags && note.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
