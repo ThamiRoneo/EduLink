@@ -1,6 +1,6 @@
-  "use client"
+"use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
@@ -19,11 +19,24 @@ const DOCUMENT_TYPES = [
   "Other",
 ] as const
 
+type Course = {
+  id: string
+  institution: string
+  faculty?: string
+  course_code: string
+  course_name: string
+}
+
 export function UploadForm() {
   const [title, setTitle] = useState("")
   const [institution, setInstitution] = useState("")
+  const [faculty, setFaculty] = useState("")
   const [courseCode, setCourseCode] = useState("")
   const [courseName, setCourseName] = useState("")
+  const [courseId, setCourseId] = useState<string>("")
+  const [courses, setCourses] = useState<Course[]>([])
+  const [showCourseSug, setShowCourseSug] = useState(false)
+  const courseRef = useRef<HTMLDivElement>(null)
   const [year, setYear] = useState("")
   const [tags, setTags] = useState("")
   const [documentType, setDocumentType] = useState("")
@@ -32,6 +45,37 @@ export function UploadForm() {
   const [error, setError] = useState("")
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      const { data } = await supabase.from("courses").select("*").order("institution").order("course_code")
+      setCourses((data || []) as Course[])
+    }
+    loadCourses()
+  }, [supabase])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (courseRef.current && !courseRef.current.contains(e.target as Node)) setShowCourseSug(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const filteredCourses = courses.filter((c) => {
+    const q = courseCode.toLowerCase()
+    if (!q) return true
+    return c.course_code.toLowerCase().includes(q) || c.course_name.toLowerCase().includes(q) || (c.institution || "").toLowerCase().includes(q)
+  }).slice(0, 10)
+
+  function selectCourse(c: Course) {
+    setCourseId(c.id)
+    setInstitution(c.institution)
+    if (c.faculty) setFaculty(c.faculty)
+    setCourseCode(c.course_code)
+    setCourseName(c.course_name)
+    setShowCourseSug(false)
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0]
@@ -79,20 +123,26 @@ export function UploadForm() {
 
       const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean)
 
-      const { error: insertError } = await supabase.from('notes').insert({
+      const insertData: any = {
         uploader_id: user.id,
         title,
         institution,
         course_code: courseCode,
         course_name: courseName,
         year,
+        year_level: yearLevel || null,
+        lecturer: lecturer || null,
         tags: tagArray,
         file_type: fileExt === 'pdf' ? 'pdf' : 'docx',
         file_url: fileName,
         file_size: file.size,
         status: 'pending',
         ...(documentType ? { document_type: documentType } : {}),
-      })
+        ...(faculty ? { faculty } : {}),
+        ...(courseId ? { course_id: courseId } : {}),
+      }
+
+      const { error: insertError } = await supabase.from('notes').insert(insertData)
 
       if (insertError) throw insertError
 
@@ -116,21 +166,56 @@ export function UploadForm() {
           <label className="block text-sm font-medium text-slate-900 mb-1">Title</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
         </div>
+
+        <div className="sm:col-span-2" ref={courseRef}>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Course from catalog (optional)</label>
+          <input
+            type="text"
+            value={courseCode}
+            onChange={(e) => {
+              setCourseCode(e.target.value)
+              setCourseId("")
+              setShowCourseSug(true)
+            }}
+            onFocus={() => setShowCourseSug(true)}
+            placeholder="Search course code or name..."
+            className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {showCourseSug && filteredCourses.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full max-w-xl bg-white border border-slate-200 rounded-md shadow-sm max-h-48 overflow-auto">
+              {filteredCourses.map((c) => (
+                <button key={c.id} type="button" onClick={() => selectCourse(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                  <div className="font-medium text-slate-900">{c.course_code} - {c.course_name}</div>
+                  <div className="text-xs text-slate-600">{c.institution}{c.faculty ? ` • ${c.faculty}` : ""}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Institution</label>
-          <input type="text" value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. University of Pretoria" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" value={institution} onChange={(e) => { setInstitution(e.target.value); setCourseId("") }} placeholder="e.g. University of Pretoria" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Faculty/Department</label>
+          <input type="text" value={faculty} onChange={(e) => { setFaculty(e.target.value); setCourseId("") }} placeholder="e.g. EMS" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Course Code</label>
-          <input type="text" value={courseCode} onChange={(e) => setCourseCode(e.target.value)} placeholder="e.g. WTW158" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" value={courseCode} onChange={(e) => { setCourseCode(e.target.value); setCourseId("") }} placeholder="e.g. WTW158" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Course Name</label>
-          <input type="text" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Calculus 158" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" value={courseName} onChange={(e) => { setCourseName(e.target.value); setCourseId("") }} placeholder="e.g. Calculus 158" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-1">Year</label>
-          <input type="text" value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 2025" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Year Level</label>
+          <input type="text" value={yearLevel} onChange={(e) => setYearLevel(e.target.value)} placeholder="e.g. 1st Year / Year 1" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Lecturer</label>
+          <input type="text" value={lecturer} onChange={(e) => setLecturer(e.target.value)} placeholder="e.g. Dr. Smith" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Document Type</label>

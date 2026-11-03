@@ -12,6 +12,7 @@ type Note = {
   course_code: string
   course_name: string
   year: string
+  year_level?: string
   faculty?: string
   department?: string
   semester?: string
@@ -26,6 +27,19 @@ type Note = {
   file_size: number
   description?: string
   document_type?: string
+  uploader_id?: string
+  uploader?: {
+    institution_affiliation?: string
+    display_name?: string
+  }
+}
+
+type Course = {
+  id: string
+  institution: string
+  faculty?: string
+  course_code: string
+  course_name: string
 }
 
 const PAGE_SIZE = 12
@@ -41,6 +55,7 @@ export function BrowseNotes() {
     institution: searchParams.get("institution") || "",
     course_code: searchParams.get("course_code") || "",
     year: searchParams.get("year") || "",
+    year_level: searchParams.get("year_level") || "",
     tag: searchParams.get("tag") || "",
     file_type: searchParams.get("file_type") || "",
     faculty: searchParams.get("faculty") || "",
@@ -54,13 +69,18 @@ export function BrowseNotes() {
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const [sort, setSort] = useState(searchParams.get("sort") || "recent")
   const supabase = createClient()
+  const [user, setUser] = useState<any>(null)
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
   const [instSuggestions, setInstSuggestions] = useState<string[]>([])
   const [courseSuggestions, setCourseSuggestions] = useState<string[]>([])
+  const [catalogCourses, setCatalogCourses] = useState<Course[]>([])
   const [showInstSug, setShowInstSug] = useState(false)
   const [showCourseSug, setShowCourseSug] = useState(false)
+  const [showCatalogSug, setShowCatalogSug] = useState(false)
   const instRef = useRef<HTMLDivElement>(null)
   const courseRef = useRef<HTMLDivElement>(null)
+  const catalogRef = useRef<HTMLDivElement>(null)
 
   const updateUrl = useCallback((newFilters: typeof filters, newPage: number, newSort: string) => {
     const params = new URLSearchParams()
@@ -68,6 +88,7 @@ export function BrowseNotes() {
     if (newFilters.institution) params.set("institution", newFilters.institution)
     if (newFilters.course_code) params.set("course_code", newFilters.course_code)
     if (newFilters.year) params.set("year", newFilters.year)
+    if (newFilters.year_level) params.set("year_level", newFilters.year_level)
     if (newFilters.tag) params.set("tag", newFilters.tag)
     if (newFilters.file_type) params.set("file_type", newFilters.file_type)
     if (newFilters.faculty) params.set("faculty", newFilters.faculty)
@@ -87,15 +108,28 @@ export function BrowseNotes() {
   }, [filters])
 
   useEffect(() => {
+    async function loadUserAndFavs() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      if (user) {
+        const { data } = await supabase.from("favorites").select("note_id").eq("user_id", user.id)
+        setFavorites(new Set((data || []).map((f: any) => f.note_id)))
+      }
+    }
+    loadUserAndFavs()
+  }, [supabase])
+
+  useEffect(() => {
     const t = setTimeout(() => {
       if (
         draftFilters.q !== filters.q ||
         draftFilters.institution !== filters.institution ||
         draftFilters.course_code !== filters.course_code ||
         draftFilters.year !== filters.year ||
+        draftFilters.year_level !== filters.year_level ||
         draftFilters.tag !== filters.tag
       ) {
-        setFilters({ ...filters, q: draftFilters.q, institution: draftFilters.institution, course_code: draftFilters.course_code, year: draftFilters.year, tag: draftFilters.tag })
+        setFilters({ ...filters, q: draftFilters.q, institution: draftFilters.institution, course_code: draftFilters.course_code, year: draftFilters.year, year_level: draftFilters.year_level, tag: draftFilters.tag })
         setPage(1)
       }
     }, 300)
@@ -104,9 +138,10 @@ export function BrowseNotes() {
 
   useEffect(() => {
     const loadSuggestions = async () => {
-      const [instRes, courseRes] = await Promise.all([
+      const [instRes, courseRes, catRes] = await Promise.all([
         supabase.from("notes").select("institution").eq("status", "approved").limit(1000),
         supabase.from("notes").select("course_code").eq("status", "approved").limit(1000),
+        supabase.from("courses").select("*").order("institution").order("course_code").limit(2000),
       ])
       const instSet = new Set<string>()
       const courseSet = new Set<string>()
@@ -114,6 +149,7 @@ export function BrowseNotes() {
       ;(courseRes.data || []).forEach((r: any) => { if (r.course_code) courseSet.add(r.course_code.trim()) })
       setInstSuggestions(Array.from(instSet).sort())
       setCourseSuggestions(Array.from(courseSet).sort())
+      setCatalogCourses((catRes.data || []) as Course[])
     }
     loadSuggestions()
   }, [supabase])
@@ -122,6 +158,7 @@ export function BrowseNotes() {
     const handler = (e: MouseEvent) => {
       if (instRef.current && !instRef.current.contains(e.target as Node)) setShowInstSug(false)
       if (courseRef.current && !courseRef.current.contains(e.target as Node)) setShowCourseSug(false)
+      if (catalogRef.current && !catalogRef.current.contains(e.target as Node)) setShowCatalogSug(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -131,7 +168,7 @@ export function BrowseNotes() {
     setLoading(true)
     let query = supabase
       .from("notes")
-      .select("*", { count: "exact" })
+      .select("*, uploader:profiles(display_name, institution_affiliation)", { count: "exact" })
       .eq("status", "approved")
 
     if (sort === "most_viewed" || sort === "views") {
@@ -147,13 +184,14 @@ export function BrowseNotes() {
     if (filters.q) {
       const q = filters.q.trim()
       if (q) {
-        // Full-text search across title, course_name, description with ilike fallback
         query = query.or(`search_vector.plfts.(${q}),title.ilike.%${q}%,course_name.ilike.%${q}%,description.ilike.%${q}%`)
       }
     }
+    if (filters.course_id) query = query.eq("course_id", filters.course_id)
     if (filters.institution) query = query.ilike("institution", `%${filters.institution}%`)
     if (filters.course_code) query = query.ilike("course_code", `%${filters.course_code}%`)
     if (filters.year) query = query.eq("year", filters.year)
+    if ((filters as any).year_level) query = query.ilike("year_level", `%${(filters as any).year_level}%`)
     if (filters.tag) query = query.contains("tags", [filters.tag])
     if (filters.file_type) query = query.eq("file_type", filters.file_type)
     if (filters.faculty) query = query.ilike("faculty", `%${filters.faculty}%`)
@@ -194,9 +232,16 @@ export function BrowseNotes() {
     if (key === "course_code") setShowCourseSug(false)
   }
 
+  const applyCatalogCourse = (c: Course) => {
+    setFilters({ ...filters, course_id: c.id, institution: c.institution, course_code: c.course_code })
+    setDraftFilters({ ...draftFilters, course_id: c.id, institution: c.institution, course_code: c.course_code })
+    setPage(1)
+    setShowCatalogSug(false)
+  }
+
   const clearFilters = () => {
-    setFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
-    setDraftFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
+    setFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
+    setDraftFilters({ q: "", institution: "", course_code: "", year: "", year_level: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
     setPage(1)
   }
 
@@ -212,12 +257,40 @@ export function BrowseNotes() {
 
   const filteredInst = instSuggestions.filter(s => s.toLowerCase().includes((draftFilters.institution || "").toLowerCase())).slice(0, 8)
   const filteredCourse = courseSuggestions.filter(s => s.toLowerCase().includes((draftFilters.course_code || "").toLowerCase())).slice(0, 8)
+  const filteredCatalog = catalogCourses.filter(c => {
+    const q = (draftFilters.course_code || "").toLowerCase()
+    if (!q) return true
+    return c.course_code.toLowerCase().includes(q) || c.course_name.toLowerCase().includes(q) || c.institution.toLowerCase().includes(q)
+  }).slice(0, 10)
 
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
         <input placeholder="Search by title or course name..." value={draftFilters.q} onChange={(e) => handleFilterChange("q", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+          <div className="relative sm:col-span-2" ref={catalogRef}>
+            <input
+              placeholder="Course from catalog"
+              value={filters.course_id ? (catalogCourses.find(c=>c.id===filters.course_id)?.course_code + " - " + catalogCourses.find(c=>c.id===filters.course_id)?.course_name) : draftFilters.course_code}
+              onChange={(e) => {
+                setDraftFilters({ ...draftFilters, course_code: e.target.value, course_id: "" })
+                setFilters({ ...filters, course_id: "" })
+                setShowCatalogSug(true)
+              }}
+              onFocus={() => setShowCatalogSug(true)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm"
+            />
+            {showCatalogSug && filteredCatalog.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-sm max-h-48 overflow-auto">
+                {filteredCatalog.map((c) => (
+                  <button key={c.id} type="button" onClick={() => applyCatalogCourse(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                    <div className="font-medium text-slate-900">{c.course_code} - {c.course_name}</div>
+                    <div className="text-xs text-slate-600">{c.institution}{c.faculty ? ` • ${c.faculty}` : ""}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="relative" ref={instRef}>
             <input placeholder="Institution" value={draftFilters.institution} onChange={(e) => { handleFilterChange("institution", e.target.value); setShowInstSug(true) }} onFocus={() => setShowInstSug(true)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
             {showInstSug && filteredInst.length > 0 && (
@@ -239,14 +312,15 @@ export function BrowseNotes() {
             )}
           </div>
           <input placeholder="Year" value={draftFilters.year} onChange={(e) => handleFilterChange("year", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
+          <input placeholder="Year Level" value={(draftFilters as any).year_level || ""} onChange={(e) => handleFilterChange("year_level", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
           <input placeholder="Tag" value={draftFilters.tag} onChange={(e) => handleFilterChange("tag", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3">
           <select value={filters.file_type} onChange={(e) => handleFilterChange("file_type", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm">
             <option value="">All file types</option>
             <option value="pdf">PDF</option>
             <option value="docx">DOCX</option>
           </select>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
           <select value={filters.document_type} onChange={(e) => handleFilterChange("document_type", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm">
             <option value="">All document types</option>
             <option value="Lecture Notes">Lecture Notes</option>
@@ -266,10 +340,11 @@ export function BrowseNotes() {
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
               {filters.q && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Search: {filters.q}</span>}
+              {filters.course_id && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Catalog course</span>}
               {filters.institution && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Institution: {filters.institution}</span>}
               {filters.course_code && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Course: {filters.course_code}</span>}
               {filters.year && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Year: {filters.year}</span>}
-              {filters.tag && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Tag: #{filters.tag}</span>}
+              {(filters as any).year_level && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Year Level: {(filters as any).year_level}</span>}
               {filters.file_type && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Type: {filters.file_type.toUpperCase()}</span>}
               {filters.document_type && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Document: {filters.document_type}</span>}
               {filters.faculty && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Faculty/Dept: {filters.faculty}</span>}
@@ -310,36 +385,58 @@ export function BrowseNotes() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {notes.map((note) => (
-              <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-                <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">{note.title}</h3>
-                <div className="text-xs text-slate-600 space-y-1 mb-3">
-                  <p>{note.institution}</p>
-                  <p>{note.course_code} • {note.course_name}</p>
-                  <p>Year: {note.year}</p>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  {note.document_type && (
-                    <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded">{note.document_type}</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                  <span>★ {note.avg_rating?.toFixed(1) || "0.0"} ({note.rating_count || 0})</span>
-                  <span>{note.view_count || 0} views</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                  <span className="uppercase">{note.file_type}</span>
-                  <span>{formatFileSize(note.file_size)}</span>
-                </div>
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {note.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded">#{tag}</span>
-                    ))}
+            {notes.map((note) => {
+              const isFav = favorites.has(note.id)
+              async function toggleFav(e: React.MouseEvent) {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!user) {
+                  router.push("/login")
+                  return
+                }
+                if (isFav) {
+                  await supabase.from("favorites").delete().eq("note_id", note.id).eq("user_id", user.id)
+                  setFavorites(prev => { const n = new Set(prev); n.delete(note.id); return n })
+                } else {
+                  await supabase.from("favorites").insert({ note_id: note.id, user_id: user.id })
+                  setFavorites(prev => new Set(prev).add(note.id))
+                }
+              }
+              const cred = note.uploader?.institution_affiliation || note.institution
+              const yearCred = note.year
+              return (
+                <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow relative">
+                  <button onClick={toggleFav} className="absolute top-2 right-2 text-lg" title={isFav ? "Remove from favorites" : "Add to favorites"}>
+                    {isFav ? "★" : "☆"}
+                  </button>
+                  <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 pr-6">{note.title}</h3>
+                  <div className="text-xs text-slate-600 space-y-1 mb-2">
+                    <p>{note.course_code} • {note.course_name}</p>
+                    <p className="text-slate-500">{cred}{yearCred ? ` • ${yearCred}` : ""}</p>
                   </div>
-                )}
-              </Link>
-            ))}
+                  <div className="flex items-center gap-2 mb-2">
+                    {note.document_type && (
+                      <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded">{note.document_type}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                    <span>★ {note.avg_rating?.toFixed(1) || "0.0"} ({note.rating_count || 0})</span>
+                    <span>{note.view_count || 0} views</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                    <span className="uppercase">{note.file_type}</span>
+                    <span>{formatFileSize(note.file_size)}</span>
+                  </div>
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {note.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </Link>
+              )
+            })}
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
