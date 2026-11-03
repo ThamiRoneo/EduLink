@@ -25,6 +25,7 @@ type Note = {
   file_type: string
   file_size: number
   description?: string
+  document_type?: string
 }
 
 const PAGE_SIZE = 12
@@ -47,6 +48,7 @@ export function BrowseNotes() {
     semester: searchParams.get("semester") || "",
     term: searchParams.get("term") || "",
     lecturer: searchParams.get("lecturer") || "",
+    document_type: searchParams.get("document_type") || "",
   })
   const [draftFilters, setDraftFilters] = useState(filters)
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
@@ -73,6 +75,7 @@ export function BrowseNotes() {
     if (newFilters.semester) params.set("semester", newFilters.semester)
     if (newFilters.term) params.set("term", newFilters.term)
     if (newFilters.lecturer) params.set("lecturer", newFilters.lecturer)
+    if (newFilters.document_type) params.set("document_type", newFilters.document_type)
     if (newSort && newSort !== "recent") params.set("sort", newSort)
     if (newPage > 1) params.set("page", newPage.toString())
     const query = params.toString()
@@ -142,7 +145,11 @@ export function BrowseNotes() {
     }
 
     if (filters.q) {
-      query = query.or(`title.ilike.%${filters.q}%,course_name.ilike.%${filters.q}%`)
+      const q = filters.q.trim()
+      if (q) {
+        // Full-text search across title, course_name, description with ilike fallback
+        query = query.or(`search_vector.plfts.(${q}),title.ilike.%${q}%,course_name.ilike.%${q}%,description.ilike.%${q}%`)
+      }
     }
     if (filters.institution) query = query.ilike("institution", `%${filters.institution}%`)
     if (filters.course_code) query = query.ilike("course_code", `%${filters.course_code}%`)
@@ -154,6 +161,7 @@ export function BrowseNotes() {
     if (filters.semester) query = query.ilike("semester", `%${filters.semester}%`)
     if (filters.term) query = query.ilike("term", `%${filters.term}%`)
     if (filters.lecturer) query = query.ilike("lecturer", `%${filters.lecturer}%`)
+    if (filters.document_type) query = query.eq("document_type", filters.document_type)
 
     const from = (page - 1) * PAGE_SIZE
     const to = from + PAGE_SIZE - 1
@@ -170,8 +178,8 @@ export function BrowseNotes() {
 
   const handleFilterChange = (key: string, value: string) => {
     setDraftFilters({ ...draftFilters, [key]: value })
-    if (key === "file_type") {
-      setFilters({ ...filters, file_type: value })
+    if (key === "file_type" || key === "document_type") {
+      setFilters({ ...filters, [key]: value })
       setPage(1)
     } else {
       setPage(1)
@@ -187,8 +195,8 @@ export function BrowseNotes() {
   }
 
   const clearFilters = () => {
-    setFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "" })
-    setDraftFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "" })
+    setFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
+    setDraftFilters({ q: "", institution: "", course_code: "", year: "", tag: "", file_type: "", faculty: "", department: "", semester: "", term: "", lecturer: "", document_type: "" })
     setPage(1)
   }
 
@@ -238,7 +246,16 @@ export function BrowseNotes() {
             <option value="docx">DOCX</option>
           </select>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+          <select value={filters.document_type} onChange={(e) => handleFilterChange("document_type", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm">
+            <option value="">All document types</option>
+            <option value="Lecture Notes">Lecture Notes</option>
+            <option value="Past Paper">Past Paper</option>
+            <option value="Assignment">Assignment</option>
+            <option value="Tutorial">Tutorial</option>
+            <option value="Lab Report">Lab Report</option>
+            <option value="Other">Other</option>
+          </select>
           <input placeholder="Faculty/Department" value={filters.faculty} onChange={(e) => handleFilterChange("faculty", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
           <input placeholder="Department" value={filters.department} onChange={(e) => handleFilterChange("department", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
           <input placeholder="Semester" value={filters.semester} onChange={(e) => handleFilterChange("semester", e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm" />
@@ -254,6 +271,7 @@ export function BrowseNotes() {
               {filters.year && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Year: {filters.year}</span>}
               {filters.tag && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Tag: #{filters.tag}</span>}
               {filters.file_type && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Type: {filters.file_type.toUpperCase()}</span>}
+              {filters.document_type && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Document: {filters.document_type}</span>}
               {filters.faculty && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Faculty/Dept: {filters.faculty}</span>}
               {filters.department && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Department: {filters.department}</span>}
               {filters.semester && <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">Semester: {filters.semester}</span>}
@@ -299,6 +317,11 @@ export function BrowseNotes() {
                   <p>{note.institution}</p>
                   <p>{note.course_code} • {note.course_name}</p>
                   <p>Year: {note.year}</p>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  {note.document_type && (
+                    <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded">{note.document_type}</span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
                   <span>★ {note.avg_rating?.toFixed(1) || "0.0"} ({note.rating_count || 0})</span>

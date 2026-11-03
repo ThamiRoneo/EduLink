@@ -1,4 +1,4 @@
-"use client"
+  "use client"
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -10,6 +10,15 @@ const ALLOWED_TYPES = [
 ]
 const MAX_SIZE = 100 * 1024 * 1024
 
+const DOCUMENT_TYPES = [
+  "Lecture Notes",
+  "Past Paper",
+  "Assignment",
+  "Tutorial",
+  "Lab Report",
+  "Other",
+] as const
+
 export function UploadForm() {
   const [title, setTitle] = useState("")
   const [institution, setInstitution] = useState("")
@@ -17,6 +26,7 @@ export function UploadForm() {
   const [courseName, setCourseName] = useState("")
   const [year, setYear] = useState("")
   const [tags, setTags] = useState("")
+  const [documentType, setDocumentType] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -81,6 +91,7 @@ export function UploadForm() {
         file_url: fileName,
         file_size: file.size,
         status: 'pending',
+        ...(documentType ? { document_type: documentType } : {}),
       })
 
       if (insertError) throw insertError
@@ -120,6 +131,15 @@ export function UploadForm() {
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Year</label>
           <input type="text" value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 2025" required className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Document Type</label>
+          <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select document type</option>
+            {DOCUMENT_TYPES.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
         </div>
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-slate-900 mb-1">Tags (comma separated)</label>
