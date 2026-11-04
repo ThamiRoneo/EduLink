@@ -69,7 +69,7 @@ export default function AppLayoutClient({
                 </button>
                 {userMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Profile</Link>
+                    <button onClick={() => { setUserMenu(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
                     <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
@@ -96,7 +96,7 @@ export default function AppLayoutClient({
                     <Link href="/upload" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Upload</Link>
                     <Link href="/my-uploads" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>My Uploads</Link>
                     <Link href="/favorites" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Favorites</Link>
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Profile</Link>
+                    <button onClick={() => { setUserMenu(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
                     <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
