@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 async function computeFileHash(file: File): Promise<string> {
   try {
@@ -86,7 +86,11 @@ export function UploadForm() {
   const [duplicateWarning, setDuplicateWarning] = useState("")
   const [duplicateConfirmed, setDuplicateConfirmed] = useState(false)
   const [guidelinesOpen, setGuidelinesOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [originalNote, setOriginalNote] = useState<any>(null)
+  const [existingFileUrl, setExistingFileUrl] = useState<string>("")
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const tagSuggestions = useMemo(() => {
@@ -125,6 +129,39 @@ export function UploadForm() {
     }
     loadCourses()
   }, [supabase])
+
+  useEffect(() => {
+    const id = searchParams?.get("edit")
+    if (!id) return
+    setEditId(id)
+    async function loadNote() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase.from("notes").select("*").eq("id", id).eq("uploader_id", user.id).single()
+        if (!data) return
+        if (data.status !== "pending" && data.status !== "rejected") return
+        setOriginalNote(data)
+        setTitle(data.title || "")
+        setDescription(data.description || "")
+        setInstitution(data.institution || "")
+        setFaculty(data.faculty || "")
+        setCourseCode(data.course_code || "")
+        setCourseName(data.course_name || "")
+        setCourseId(data.course_id || "")
+        setYear(data.year || "")
+        setAcademicYear(data.academic_year || "")
+        setYearLevel(data.year_level || "")
+        setSemester(data.semester || data.term || "")
+        setTerm(data.term || data.semester || "")
+        setLecturer(data.lecturer || "")
+        setTags(Array.isArray(data.tags) ? data.tags.join(", ") : data.tags || "")
+        setDocumentType(data.document_type || "")
+        setExistingFileUrl(data.file_url || "")
+      } catch (_) {}
+    }
+    loadNote()
+  }, [searchParams, supabase])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -286,7 +323,7 @@ export function UploadForm() {
         return
       }
 
-      if (!file) {
+      if (!editId && !file) {
         setError("Please select a file to upload.")
         setLoading(false)
         return
@@ -330,7 +367,7 @@ export function UploadForm() {
         }
       }
 
-      if (duplicateWarning && !duplicateConfirmed) {
+      if (!editId && duplicateWarning && !duplicateConfirmed) {
         setError("A duplicate may exist. Confirm you want to upload anyway.")
         setLoading(false)
         return
@@ -344,18 +381,25 @@ export function UploadForm() {
         return
       }
 
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || ""
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`
-      
-      setUploadProgress(30)
-      const { error: uploadError } = await supabase.storage.from('notes').upload(fileName, file, { upsert: false })
-      if (uploadError) throw uploadError
-      setUploadProgress(70)
+      let fileExt = originalNote?.file_type || ""
+      let fileName = existingFileUrl
+      let fileSize = originalNote?.file_size || 0
+
+      if (file) {
+        fileExt = file.name.split('.').pop()?.toLowerCase() || ""
+        fileName = `${user.id}/${Date.now()}.${fileExt}`
+        fileSize = file.size
+        setUploadProgress(30)
+        const { error: uploadError } = await supabase.storage.from('notes').upload(fileName, file, { upsert: false })
+        if (uploadError) throw uploadError
+        setUploadProgress(70)
+      } else {
+        setUploadProgress(70)
+      }
 
       const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean)
 
-      const insertData: any = {
-        uploader_id: user.id,
+      const baseData: any = {
         title,
         description: description || null,
         institution,
@@ -368,19 +412,28 @@ export function UploadForm() {
         year_level: yearLevel || null,
         lecturer: lecturer || null,
         tags: tagArray,
-        file_type: fileExt === 'pdf' ? 'pdf' : fileExt === 'docx' ? 'docx' : 'doc',
+        file_type: fileExt === 'pdf' ? 'pdf' : fileExt === 'docx' ? 'docx' : (fileExt || originalNote?.file_type || 'pdf'),
         file_url: fileName,
-        file_size: file.size,
-        ...(fileHash ? { file_hash: fileHash } : {}),
+        file_size: fileSize,
+        ...(fileHash ? { file_hash: fileHash } : (!editId && {})),
         status: 'pending',
         ...(documentType ? { document_type: documentType } : {}),
         ...(faculty ? { faculty } : {}),
         ...(courseId ? { course_id: courseId } : {}),
       }
+      if (editId) {
+        delete baseData.uploader_id
+      }
 
-      const { error: insertError } = await supabase.from('notes').insert(insertData)
-
-      if (insertError) throw insertError
+      if (editId) {
+        const updateData: any = { ...baseData, rejection_reason: null }
+        const { error: updateError } = await supabase.from('notes').update(updateData).eq('id', editId).eq('uploader_id', user.id)
+        if (updateError) throw updateError
+      } else {
+        const insertData: any = { ...baseData, uploader_id: user.id }
+        const { error: insertError } = await supabase.from('notes').insert(insertData)
+        if (insertError) throw insertError
+      }
       setUploadProgress(100)
 
       router.push("/my-uploads")
@@ -423,7 +476,7 @@ export function UploadForm() {
             type="file"
             accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
             onChange={handleFileChange}
-            required
+            required={!editId}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
           <div className="space-y-1">
@@ -433,6 +486,19 @@ export function UploadForm() {
             <p className="text-xs text-slate-500">PDF, DOCX, or DOC (max 100MB)</p>
           </div>
         </div>
+        {!file && editId && existingFileUrl && (
+          <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between">
+            <div className="flex items-center space-x-2 min-w-0">
+              <svg className="w-5 h-5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">Existing file</p>
+                <p className="text-xs text-slate-600">Replace by uploading a new file above</p>
+              </div>
+            </div>
+          </div>
+        )}
         {file && (
           <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2 min-w-0">
@@ -665,7 +731,7 @@ export function UploadForm() {
       )}
 
       <button type="submit" disabled={loading} className="w-full bg-primary text-white py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-        {loading ? "Uploading..." : "Submit for moderation"}
+        {loading ? (editId ? "Saving..." : "Uploading...") : (editId ? "Resubmit for moderation" : "Submit for moderation")}
       </button>
     </form>
   )
