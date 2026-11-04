@@ -243,7 +243,6 @@ export function Favorites() {
           )}
           </>
         )}
-      )}
 
       {recentViews.length > 0 && (
         <section className="space-y-2">
