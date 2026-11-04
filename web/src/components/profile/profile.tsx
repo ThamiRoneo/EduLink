@@ -14,6 +14,9 @@ export function Profile() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [contributionCount, setContributionCount] = useState(0)
+  const [favoritesCount, setFavoritesCount] = useState(0)
+  const [recentUploads, setRecentUploads] = useState<any[]>([])
+  const [recentFavorites, setRecentFavorites] = useState<any[]>([])
   const [form, setForm] = useState({
     display_name: "",
     bio: "",
@@ -47,12 +50,37 @@ export function Profile() {
           year_of_study: data.year_of_study || "",
         })
       }
-      const { count } = await supabase
-        .from("notes")
-        .select("*", { count: "exact", head: true })
-        .eq("uploader_id", user.id)
-        .eq("status", "approved")
-      setContributionCount(count || 0)
+      const [{ count: uploadCount }, { count: favCount }] = await Promise.all([
+        supabase
+          .from("notes")
+          .select("*", { count: "exact", head: true })
+          .eq("uploader_id", user.id)
+          .eq("status", "approved"),
+        supabase
+          .from("favorites")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+      ])
+      setContributionCount(uploadCount || 0)
+      setFavoritesCount(favCount || 0)
+
+      const [{ data: uploads }, { data: favorites }] = await Promise.all([
+        supabase
+          .from("notes")
+          .select("id,title,course_code,created_at")
+          .eq("uploader_id", user.id)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("favorites")
+          .select("note_id, created_at, notes(id,title,course_code)")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ])
+      setRecentUploads(uploads || [])
+      setRecentFavorites((favorites || []).map((f: any) => f.notes).filter(Boolean))
       setLoading(false)
     }
     load()
