@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
@@ -18,6 +18,24 @@ const DOCUMENT_TYPES = [
   "Tutorial",
   "Lab Report",
   "Other",
+] as const
+
+const COMMON_TAGS = [
+  "lecture-notes",
+  "past-paper",
+  "exam",
+  "midterm",
+  "final",
+  "tutorial",
+  "assignment",
+  "lab-report",
+  "summary",
+  "revision",
+  "solutions",
+  "formula-sheet",
+  "quiz",
+  "notes",
+  "research",
 ] as const
 
 type Course = {
@@ -53,8 +71,39 @@ export function UploadForm() {
   const [dragActive, setDragActive] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [hasPermission, setHasPermission] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState("")
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const tagSuggestions = useMemo(() => {
+    const base = new Set<string>()
+    if (documentType === "Lecture Notes") {
+      base.add("lecture-notes")
+      base.add("notes")
+      base.add("summary")
+    } else if (documentType === "Past Paper") {
+      base.add("past-paper")
+      base.add("exam")
+      base.add("solutions")
+    } else if (documentType === "Assignment") {
+      base.add("assignment")
+      base.add("solutions")
+    } else if (documentType === "Tutorial") {
+      base.add("tutorial")
+      base.add("exercises")
+    } else if (documentType === "Lab Report") {
+      base.add("lab-report")
+    }
+    if (yearLevel) base.add("year-" + yearLevel.toLowerCase().replace(/\s+/g, "-"))
+    const existing = new Set(
+      tags
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+    )
+    return COMMON_TAGS.filter((t) => !existing.has(t)).slice(0, 8)
+  }, [documentType, yearLevel, tags])
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -78,16 +127,47 @@ export function UploadForm() {
     return c.course_code.toLowerCase().includes(q) || c.course_name.toLowerCase().includes(q) || (c.institution || "").toLowerCase().includes(q)
   }).slice(0, 10)
 
-  function selectCourse(c: Course) {
-    setCourseId(c.id)
-    setInstitution(c.institution)
-    if (c.faculty) setFaculty(c.faculty)
-    setCourseCode(c.course_code)
-    setCourseName(c.course_name)
-    setShowCourseSug(false)
+  function addTagSuggestion(suggestion: string) {
+    const parts = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (parts.some((p) => p.toLowerCase() === suggestion.toLowerCase())) return
+    const newTags = [...parts, suggestion].join(", ")
+    setTags(newTags)
   }
 
+  useEffect(() => {
+    const checkDuplicate = async () => {
+      const t = title.trim()
+      const c = courseName.trim()
+      if (!t || !c) {
+        setDuplicateWarning("")
+        return
+      }
+      const { data } = await supabase
+        .from("notes")
+        .select("id")
+        .ilike("title", t)
+        .ilike("course_name", c)
+        .limit(1)
+      if (data && data.length > 0) {
+        setDuplicateWarning("A note with the same title and course already exists.")
+      } else {
+        setDuplicateWarning("")
+      }
+    }
+    const timer = setTimeout(checkDuplicate, 400)
+    return () => clearTimeout(timer)
+  }, [title, courseName, supabase])
+
   function validateAndSetFile(selectedFile: File) {
+    if (selectedFile.size === 0) {
+      setError("File is empty. Please select a valid file.")
+      setFile(null)
+      return
+    }
+
     const lowerName = selectedFile.name.toLowerCase()
     const isAllowed =
       ALLOWED_TYPES.includes(selectedFile.type) ||
@@ -141,15 +221,13 @@ export function UploadForm() {
     }
   }
 
-    if (selectedFile.size === 0) {
-      setError("File is empty. Please select a valid file.")
-      setFile(null)
-      e.target.value = ""
-      return
-    }
-
-    setError("")
-    setFile(selectedFile)
+  function selectCourse(c: Course) {
+    setCourseId(c.id)
+    setInstitution(c.institution)
+    setFaculty(c.faculty || "")
+    setCourseCode(c.course_code)
+    setCourseName(c.course_name)
+    setShowCourseSug(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -192,6 +270,20 @@ export function UploadForm() {
         setError("Please provide a course name.")
         setLoading(false)
         return
+      }
+
+      if (courseId) {
+        const selectedCourse = courses.find((c) => c.id === courseId)
+        if (selectedCourse) {
+          const instMatch = selectedCourse.institution.trim().toLowerCase() === institution.trim().toLowerCase()
+          const codeMatch = selectedCourse.course_code.trim().toLowerCase() === courseCode.trim().toLowerCase()
+          const nameMatch = selectedCourse.course_name.trim().toLowerCase() === courseName.trim().toLowerCase()
+          if (!instMatch || !codeMatch || !nameMatch) {
+            setError("Selected course from catalog does not match the details. Please reselect from the catalog or clear the selection.")
+            setLoading(false)
+            return
+          }
+        }
       }
 
       setUploadProgress(10)
@@ -242,7 +334,8 @@ export function UploadForm() {
 
       router.push("/my-uploads")
     } catch (err: any) {
-      setError(err.message)
+      const message = err?.message || "Upload failed. Please try again."
+      setError(message)
       setLoading(false)
       setUploadProgress(0)
     }
@@ -278,21 +371,41 @@ export function UploadForm() {
         {file && (
           <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2 min-w-0">
-              {file.name.toLowerCase().endsWith('.pdf') ? (
-                <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  <text x="12" y="16" textAnchor="middle" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  <text x="12" y="16" textAnchor="middle" fontSize="5" fill="currentColor" fontWeight="bold">DOCX</text>
-                </svg>
-              )}
+              {(() => {
+                const name = file.name.toLowerCase()
+                if (name.endsWith('.pdf')) {
+                  return (
+                    <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      <text x="12" y="16" textAnchor="middle" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
+                    </svg>
+                  )
+                } else if (name.endsWith('.docx')) {
+                  return (
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      <text x="12" y="16" textAnchor="middle" fontSize="5" fill="currentColor" fontWeight="bold">DOCX</text>
+                    </svg>
+                  )
+                } else {
+                  return (
+                    <svg className="w-5 h-5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      <text x="12" y="16" textAnchor="middle" fontSize="6" fill="currentColor" fontWeight="bold">DOC</text>
+                    </svg>
+                  )
+                }
+              })()}
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
                 <p className="text-xs text-slate-600">
-                  {file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'DOCX'} • {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {(() => {
+                    const name = file.name.toLowerCase()
+                    if (name.endsWith('.pdf')) return 'PDF'
+                    if (name.endsWith('.docx')) return 'DOCX'
+                    if (name.endsWith('.doc')) return 'DOC'
+                    return file.type || 'Unknown'
+                  })()} • {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
             </div>
@@ -390,12 +503,58 @@ export function UploadForm() {
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-slate-900 mb-1">Tags (comma separated)</label>
           <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. calculus, past-paper, exam" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" />
+          {tagSuggestions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {tagSuggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => addTagSuggestion(s)}
+                  className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 border border-slate-200"
+                >
+                  + {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
         <p className="text-xs text-amber-900">All uploads require moderation before becoming visible.</p>
       </div>
+
+      <div className="border border-slate-200 rounded-md">
+        <button
+          type="button"
+          onClick={() => setGuidelinesOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-slate-900"
+        >
+          <span>Content guidelines</span>
+          <svg
+            className={`w-4 h-4 transition-transform ${guidelinesOpen ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {guidelinesOpen && (
+          <div className="px-3 pb-3 text-xs text-slate-700 space-y-1">
+            <p>• Upload only original or properly licensed study materials.</p>
+            <p>• Include accurate course details and a clear title.</p>
+            <p>• Avoid copyrighted exam answers or instructor-only materials without permission.</p>
+            <p>• Ensure the file is readable and relevant to the course.</p>
+          </div>
+        )}
+      </div>
+
+      {duplicateWarning && (
+        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+          {duplicateWarning}
+        </div>
+      )}
 
       <div className="flex items-start gap-3">
         <input
