@@ -72,6 +72,7 @@ export function UploadForm() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [hasPermission, setHasPermission] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState("")
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false)
   const [guidelinesOpen, setGuidelinesOpen] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -143,6 +144,7 @@ export function UploadForm() {
       const c = courseName.trim()
       if (!t || !c) {
         setDuplicateWarning("")
+        setDuplicateConfirmed(false)
         return
       }
       const { data } = await supabase
@@ -153,8 +155,10 @@ export function UploadForm() {
         .limit(1)
       if (data && data.length > 0) {
         setDuplicateWarning("A note with the same title and course already exists.")
+        setDuplicateConfirmed(false)
       } else {
         setDuplicateWarning("")
+        setDuplicateConfirmed(false)
       }
     }
     const timer = setTimeout(checkDuplicate, 400)
@@ -286,6 +290,12 @@ export function UploadForm() {
         }
       }
 
+      if (duplicateWarning && !duplicateConfirmed) {
+        setError("A duplicate may exist. Confirm you want to upload anyway.")
+        setLoading(false)
+        return
+      }
+
       setUploadProgress(10)
 
       if (!hasPermission) {
@@ -334,7 +344,21 @@ export function UploadForm() {
 
       router.push("/my-uploads")
     } catch (err: any) {
-      const message = err?.message || "Upload failed. Please try again."
+      const raw = err?.message || ""
+      let message = raw || "Upload failed. Please try again."
+
+      if (raw.toLowerCase().includes("network") || raw.toLowerCase().includes("fetch")) {
+        message = "Network error. Check your connection and try again."
+      } else if (raw.toLowerCase().includes("storage") || raw.toLowerCase().includes("bucket")) {
+        message = "File upload failed. Please retry — your form data has been preserved."
+      } else if (raw.toLowerCase().includes("duplicate") || raw.toLowerCase().includes("unique")) {
+        message = "This file or entry may already exist. Review the form and try again."
+      }
+
+      if (!message.toLowerCase().includes("try again")) {
+        message = `${message} You can edit the form and try again.`
+      }
+
       setError(message)
       setLoading(false)
       setUploadProgress(0)
@@ -551,8 +575,17 @@ export function UploadForm() {
       </div>
 
       {duplicateWarning && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-          {duplicateWarning}
+        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 space-y-2">
+          <p>{duplicateWarning}</p>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={duplicateConfirmed}
+              onChange={(e) => setDuplicateConfirmed(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+            />
+            <span className="text-xs">Upload anyway (I confirm this is intentional)</span>
+          </label>
         </div>
       )}
 
