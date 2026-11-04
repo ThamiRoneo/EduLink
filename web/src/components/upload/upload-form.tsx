@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
 ]
 const MAX_SIZE = 100 * 1024 * 1024
 
@@ -91,10 +92,11 @@ export function UploadForm() {
     const isAllowed =
       ALLOWED_TYPES.includes(selectedFile.type) ||
       lowerName.endsWith(".pdf") ||
-      lowerName.endsWith(".docx")
+      lowerName.endsWith(".docx") ||
+      lowerName.endsWith(".doc")
 
     if (!isAllowed) {
-      setError("Invalid file type. Only PDF (.pdf) and DOCX (.docx) files are allowed.")
+      setError("Invalid file type. Only PDF (.pdf), DOCX (.docx), and DOC (.doc) files are allowed.")
       setFile(null)
       return
     }
@@ -224,7 +226,7 @@ export function UploadForm() {
         year_level: yearLevel || null,
         lecturer: lecturer || null,
         tags: tagArray,
-        file_type: fileExt === 'pdf' ? 'pdf' : 'docx',
+        file_type: fileExt === 'pdf' ? 'pdf' : fileExt === 'docx' ? 'docx' : 'doc',
         file_url: fileName,
         file_size: file.size,
         status: 'pending',
@@ -249,7 +251,7 @@ export function UploadForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-semibold text-slate-900 mb-1">File (PDF or DOCX, max 100MB)</label>
+        <label className="block text-sm font-semibold text-slate-900 mb-1">File (PDF, DOCX, or DOC, max 100MB)</label>
         <div
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -261,7 +263,7 @@ export function UploadForm() {
         >
           <input
             type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
             onChange={handleFileChange}
             required
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -270,18 +272,28 @@ export function UploadForm() {
             <p className="text-sm text-slate-700">
               <span className="font-semibold text-blue-700">Click to upload</span> or drag and drop
             </p>
-            <p className="text-xs text-slate-500">PDF or DOCX (max 100MB)</p>
+            <p className="text-xs text-slate-500">PDF, DOCX, or DOC (max 100MB)</p>
           </div>
         </div>
         {file && (
           <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2 min-w-0">
-              <svg className="w-5 h-5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              {file.name.toLowerCase().endsWith('.pdf') ? (
+                <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <text x="12" y="16" textAnchor="middle" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <text x="12" y="16" textAnchor="middle" fontSize="5" fill="currentColor" fontWeight="bold">DOCX</text>
+                </svg>
+              )}
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
-                <p className="text-xs text-slate-600">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p className="text-xs text-slate-600">
+                  {file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'DOCX'} • {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
               </div>
             </div>
             <button
