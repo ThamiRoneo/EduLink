@@ -4,6 +4,17 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
+async function computeFileHash(file: File): Promise<string> {
+  try {
+    const buffer = await file.arrayBuffer()
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+  } catch {
+    return ""
+  }
+}
+
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -66,6 +77,7 @@ export function UploadForm() {
   const [tags, setTags] = useState("")
   const [documentType, setDocumentType] = useState("")
   const [file, setFile] = useState<File | null>(null)
+  const [fileHash, setFileHash] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [dragActive, setDragActive] = useState(false)
@@ -147,28 +159,49 @@ export function UploadForm() {
         setDuplicateConfirmed(false)
         return
       }
-      const { data } = await supabase
-        .from("notes")
-        .select("id")
-        .ilike("title", t)
-        .ilike("course_name", c)
-        .limit(1)
-      if (data && data.length > 0) {
-        setDuplicateWarning("A note with the same title and course already exists.")
-        setDuplicateConfirmed(false)
-      } else {
+      try {
+        if (fileHash) {
+          const { data: hashDup, error: hashErr } = await supabase
+            .from("notes")
+            .select("id")
+            .eq("file_hash", fileHash)
+            .limit(1)
+          if (hashErr) throw hashErr
+          if (hashDup && hashDup.length > 0) {
+            setDuplicateWarning("This file has been uploaded before.")
+            setDuplicateConfirmed(false)
+            return
+          }
+        }
+
+        const { data, error } = await supabase
+          .from("notes")
+          .select("id")
+          .ilike("title", t)
+          .ilike("course_name", c)
+          .limit(1)
+        if (error) throw error
+        if (data && data.length > 0) {
+          setDuplicateWarning("A note with the same title and course already exists.")
+          setDuplicateConfirmed(false)
+        } else {
+          setDuplicateWarning("")
+          setDuplicateConfirmed(false)
+        }
+      } catch {
         setDuplicateWarning("")
         setDuplicateConfirmed(false)
       }
     }
     const timer = setTimeout(checkDuplicate, 400)
     return () => clearTimeout(timer)
-  }, [title, courseName, supabase])
+  }, [title, courseName, fileHash, supabase])
 
   function validateAndSetFile(selectedFile: File) {
     if (selectedFile.size === 0) {
       setError("File is empty. Please select a valid file.")
       setFile(null)
+      setFileHash("")
       return
     }
 
@@ -182,23 +215,30 @@ export function UploadForm() {
     if (!isAllowed) {
       setError("Invalid file type. Only PDF (.pdf), DOCX (.docx), and DOC (.doc) files are allowed.")
       setFile(null)
+      setFileHash("")
       return
     }
 
     if (selectedFile.size > MAX_SIZE) {
       setError("File is too large. Maximum allowed size is 100MB.")
       setFile(null)
+      setFileHash("")
       return
     }
 
     setError("")
     setFile(selectedFile)
+    setFileHash("")
+    computeFileHash(selectedFile)
+      .then((h) => setFileHash(h))
+      .catch(() => setFileHash(""))
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) {
       setFile(null)
+      setFileHash("")
       return
     }
     validateAndSetFile(selectedFile)
@@ -331,6 +371,7 @@ export function UploadForm() {
         file_type: fileExt === 'pdf' ? 'pdf' : fileExt === 'docx' ? 'docx' : 'doc',
         file_url: fileName,
         file_size: file.size,
+        ...(fileHash ? { file_hash: fileHash } : {}),
         status: 'pending',
         ...(documentType ? { document_type: documentType } : {}),
         ...(faculty ? { faculty } : {}),
@@ -457,7 +498,7 @@ export function UploadForm() {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm" placeholder="Brief description of the document" />
         </div>
 
-        <div className="sm:col-span-2" ref={courseRef}>
+        <div className="sm:col-span-2 relative" ref={courseRef}>
           <label className="block text-sm font-semibold text-slate-900 mb-1">Course from catalog (optional)</label>
           <input
             type="text"
@@ -468,17 +509,21 @@ export function UploadForm() {
               setShowCourseSug(true)
             }}
             onFocus={() => setShowCourseSug(true)}
-            placeholder="Search course code or name..."
+            placeholder="Search course code, name, or institution..."
             className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          {showCourseSug && filteredCourses.length > 0 && (
+          {showCourseSug && (
             <div className="absolute z-10 mt-1 w-full max-w-xl bg-white border border-slate-200 rounded-md shadow-sm max-h-48 overflow-auto">
-              {filteredCourses.map((c) => (
-                <button key={c.id} type="button" onClick={() => selectCourse(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                  <div className="font-medium text-slate-900">{c.course_code} - {c.course_name}</div>
-                  <div className="text-xs text-slate-600">{c.institution}{c.faculty ? ` • ${c.faculty}` : ""}</div>
-                </button>
-              ))}
+              {filteredCourses.length > 0 ? (
+                filteredCourses.map((c) => (
+                  <button key={c.id} type="button" onClick={() => selectCourse(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                    <div className="font-medium text-slate-900">{c.course_code} - {c.course_name}</div>
+                    <div className="text-xs text-slate-600">{c.institution}{c.faculty ? ` • ${c.faculty}` : ""}</div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-xs text-slate-500">No matching courses found. Fill details manually below.</div>
+              )}
             </div>
           )}
         </div>
