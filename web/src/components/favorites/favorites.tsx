@@ -5,6 +5,14 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+type RecentView = {
+  id: string
+  title?: string
+  course_code?: string
+  course_name?: string
+  institution?: string
+}
+
 export function Favorites() {
   const [favorites, setFavorites] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -14,6 +22,7 @@ export function Favorites() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [recentViews, setRecentViews] = useState<RecentView[]>([])
   const supabase = createClient()
   const router = useRouter()
 
@@ -35,6 +44,20 @@ export function Favorites() {
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("edulink:recentViews")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setRecentViews(parsed.slice(0, 6))
+        }
+      }
+    } catch {
+      // ignore
+    }
   }, [])
 
   async function removeFromFavorites(noteId: string) {
@@ -59,6 +82,26 @@ export function Favorites() {
   }
 
   const clearSelection = () => setSelected(new Set())
+
+  const shareCollection = async () => {
+    if (filtered.length === 0) return
+    const ids = filtered.map((fav) => fav.notes?.id).filter(Boolean)
+    const url = `${window.location.origin}/browse?ids=${encodeURIComponent(ids.join(","))}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "My EduLink collection", url })
+        return
+      }
+    } catch {
+      // fall through to clipboard
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      alert("Collection link copied to clipboard")
+    } catch {
+      prompt("Copy this collection link:", url)
+    }
+  }
 
   const bulkRemove = async () => {
     if (selected.size === 0 || !userId) return
@@ -110,10 +153,32 @@ export function Favorites() {
     })
   }, [favorites, q, documentType, course])
 
-  if (loading) return <div className="text-center py-8">Loading...</div>
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 h-10 bg-slate-100 animate-pulse rounded-md" />
+          <div className="w-full sm:w-40 h-10 bg-slate-100 animate-pulse rounded-md" />
+          <div className="w-full sm:w-40 h-10 bg-slate-100 animate-pulse rounded-md" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+              <div className="h-4 bg-slate-100 animate-pulse rounded w-3/4" />
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-100 animate-pulse rounded w-1/2" />
+                <div className="h-3 bg-slate-100 animate-pulse rounded w-2/3" />
+                <div className="h-3 bg-slate-100 animate-pulse rounded w-1/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {notesList.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
           <p className="text-slate-600 mb-4">You have no favorites yet.</p>
@@ -127,7 +192,12 @@ export function Favorites() {
               {documentTypes.length > 0 && (<select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm"><option value="">All document types</option>{documentTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}</select>)}
               {courses.length > 0 && (<select value={course} onChange={(e) => setCourse(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm"><option value="">All courses</option>{courses.map((c) => <option key={c} value={c}>{c}</option>)}</select>)}
             </div>
-            {filtered.length > 0 && (<div className="flex items-center gap-2 text-sm"><button onClick={selectAllFiltered} className="px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Select all</button><button onClick={clearSelection} className="px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Clear</button>{selected.size > 0 && (<button onClick={bulkRemove} disabled={bulkBusy} className="px-2 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">Remove {selected.size}</button>)}</div>)}
+            <div className="flex items-center gap-2 text-sm">
+              {filtered.length > 0 && (<button onClick={shareCollection} className="px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Share</button>)}
+              {filtered.length > 0 && (<button onClick={selectAllFiltered} className="px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Select all</button>)}
+              {filtered.length > 0 && (<button onClick={clearSelection} className="px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Clear</button>)}
+              {selected.size > 0 && (<button onClick={bulkRemove} disabled={bulkBusy} className="px-2 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">Remove {selected.size}</button>)}
+            </div>
           </div>
           {filtered.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-sm text-slate-600">No favorites match your filters.</div>
@@ -171,7 +241,38 @@ export function Favorites() {
               })}
             </div>
           )}
-        </>
+          </>
+        )}
+      )}
+
+      {recentViews.length > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-slate-900">Recently viewed</h2>
+            <button
+              onClick={() => {
+                try {
+                  localStorage.removeItem("edulink:recentViews")
+                } catch {}
+                setRecentViews([])
+              }}
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {recentViews.map((rv) => (
+              <Link key={rv.id} href={`/notes/${rv.id}`} className="bg-white border border-slate-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                <p className="text-sm font-medium text-slate-900 line-clamp-1">{rv.title || "Untitled note"}</p>
+                {(rv.course_code || rv.course_name) && (
+                  <p className="text-xs text-slate-600 line-clamp-1">{rv.course_code}{rv.course_code && rv.course_name ? " • " : ""}{rv.course_name}</p>
+                )}
+                {rv.institution && <p className="text-xs text-slate-500 line-clamp-1">{rv.institution}</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )
