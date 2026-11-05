@@ -1,157 +1,158 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { renderMarkdown } from "@/lib/markdown"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
-function NoteDetailContent({ noteId }: { noteId: string }) {
+export function NoteDetail({ noteId }: { noteId: string }) {
   const [note, setNote] = useState<any>(null)
-  const [user, setUser] = useState<any>(null)
-  const [rating, setRating] = useState(0)
-  const [review, setReview] = useState("")
-  const [reportOpen, setReportOpen] = useState(false)
-  const [reportCategory, setReportCategory] = useState("Abuse")
-  const [reportDetails, setReportDetails] = useState("")
+  const [fileUrl, setFileUrl] = useState("")
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [userRating, setUserRating] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState("")
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      if (!user) { router.push("/login"); return }
 
       const { data } = await supabase.from("notes").select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)").eq("id", noteId).single()
-      setNote(data)
+      if (!data) { setLoading(false); return }
 
-      if (data && data.status === "approved") {
-        await supabase.from("view_events").insert({ note_id: noteId, user_id: user?.id || null })
-      }
+      if (data.uploader_id !== user.id && data.status === "pending") { router.push("/browse"); return }
+      if (data.uploader_id !== user.id && data.status === "rejected") { router.push("/browse"); return }
+
+      setNote(data)
+      const { data: fav } = await supabase.from("favorites").select("id").eq("note_id", noteId).eq("user_id", user.id).single()
+      setIsFavorited(!!fav)
+      const { data: rating } = await supabase.from("ratings").select("value").eq("note_id", noteId).eq("user_id", user.id).single()
+      if (rating) setUserRating(rating.value)
+      await supabase.from("views").insert({ note_id: noteId, user_id: user.id })
       setLoading(false)
     }
     load()
-  }, [noteId])
+  }, [noteId, router, supabase])
 
-  async function submitRating() {
-    if (!user) return router.push("/login")
-    if (note.uploader_id === user.id) {
-      alert("You cannot rate your own note")
-      return
+  async function downloadNote() {
+    if (!note) return
+    const { data } = await supabase.storage.from("notes").createSignedUrl(note.file_url, 60)
+    if (data?.signedUrl) {
+      const link = document.createElement("a")
+      link.href = data.signedUrl
+      link.download = note.title
+      link.click()
+      await supabase.from("downloads").insert({ note_id: noteId, user_id: (await supabase.auth.getUser()).data.user?.id })
     }
-    await supabase.from("ratings").upsert({ note_id: noteId, user_id: user.id, stars: rating }, { onConflict: "note_id,user_id" })
-    alert("Rating submitted")
-  }
-
-  async function submitReview() {
-    if (!user) return router.push("/login")
-    if (review.length > 500) {
-      alert("Review must be 500 characters or less")
-      return
-    }
-    await supabase.from("reviews").insert({ note_id: noteId, user_id: user.id, content: review })
-    setReview("")
-    alert("Review submitted")
   }
 
   async function toggleFavorite() {
-    if (!user) return router.push("/login")
-    const { data: existing } = await supabase.from("favorites").select("id").eq("note_id", noteId).eq("user_id", user.id).maybeSingle()
-    if (existing) {
-      await supabase.from("favorites").delete().eq("id", existing.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    if (isFavorited) {
+      await supabase.from("favorites").delete().eq("note_id", noteId).eq("user_id", user.id)
+      setIsFavorited(false)
     } else {
       await supabase.from("favorites").insert({ note_id: noteId, user_id: user.id })
+      setIsFavorited(true)
     }
-    alert("Favorite updated")
+  }
+
+  async function rateNote(value: number) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from("ratings").upsert({ note_id: noteId, user_id: user.id, value })
+    setUserRating(value)
   }
 
   async function submitReport() {
-    if (!user) return router.push("/login")
-    await supabase.from("reports").insert({ note_id: noteId, reporter_id: user.id, category: reportCategory, details: reportDetails })
-    setReportOpen(false)
-    setReportDetails("")
-    alert("Thanks for reporting. We'll review it.")
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from("reports").insert({ note_id: noteId, reporter_id: user.id, reason: reportReason })
+    setShowReport(false)
+    setReportReason("")
   }
 
   if (loading) return <div className="text-center py-8">Loading...</div>
   if (!note) return <div className="text-center py-8">Note not found</div>
-  if (note.status !== "approved" && note.uploader_id !== user?.id) return <div className="text-center py-8">Note not available</div>
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">{note.title}</h1>
-        <div className="text-sm text-slate-600 space-y-1 mb-4">
-          <p>{note.institution} • {note.course_code} • {note.course_name}</p>
-          <p>Year: {note.year} • Views: {note.view_count || 0}</p>
-          {note.uploader && (
-            <div className="flex items-center gap-2 pt-1">
-              {note.uploader.avatar_url ? (
-                <Image src={note.uploader.avatar_url} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover border border-slate-200" />
-              ) : (
-                <span className="h-5 w-5 rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600 flex items-center justify-center shrink-0">
-                  {(note.uploader.display_name || note.institution || "?").trim().charAt(0).toUpperCase()}
-                </span>
-              )}
-              <span>{note.uploader.institution_affiliation || note.uploader.display_name || note.institution}</span>
+      <div className="bg-white border border-slate-200 rounded-lg p-6">
+        <h1 className="text-2xl font-bold text-slate-900 mb-4">{note.title}</h1>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
+          <div><p className="text-slate-600">Institution</p><p className="font-medium">{note.institution}</p></div>
+          <div><p className="text-slate-600">Course</p><p className="font-medium">{note.course_code}</p></div>
+          <div><p className="text-slate-600">Year</p><p className="font-medium">{note.year}</p></div>
+          <div><p className="text-slate-600">Rating</p><p className="font-medium">{note.rating_avg.toFixed(1)} ({note.rating_count})</p></div>
+        </div>
+        {note.uploader && (
+          <div className="flex items-center gap-3 mb-6 p-3 bg-slate-50 rounded-lg">
+            <UserAvatar avatarUrl={note.uploader.avatar_url} name={note.uploader.display_name} size={40} className="border border-slate-200" />
+            <div>
+              <p className="font-medium text-slate-900">{note.uploader.display_name || "Anonymous"}</p>
+              {note.uploader.institution_affiliation && <p className="text-xs text-slate-600">{note.uploader.institution_affiliation}</p>}
             </div>
-          )}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button onClick={downloadNote} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download</button>
+          <button onClick={toggleFavorite} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">{isFavorited ? "★ Favorited" : "☆ Favorite"}</button>
+          <button onClick={() => setShowReport(true)} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Report</button>
         </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(note.tags || []).map((tag: string) => (
-            <span key={tag} className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded">#{tag}</span>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-lg p-6">
+        <h2 className="font-semibold text-slate-900 mb-4">Rate this note</h2>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button key={star} onClick={() => rateNote(star)} className={`text-2xl ${userRating >= star ? "text-yellow-400" : "text-slate-300"}`}>★</button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-            <a href={`/api/notes/${note.id}/download`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Download/View</a>
-          <button onClick={toggleFavorite} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Favorite</button>
-          <button onClick={() => setReportOpen(true)} className="px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Report</button>
+      </div>
+
+      {note.file_type === "text" && note.text_content && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h2 className="font-semibold text-slate-900 mb-4">Content</h2>
+          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(note.text_content) }} />
         </div>
-      </div>
+      )}
 
-      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
-        <h2 className="text-lg font-semibold mb-4">Rate this note</h2>
-        <div className="flex gap-2 mb-4">
-          {[1,2,3,4,5].map((s) => (
-            <button key={s} onClick={() => setRating(s)} className={`text-2xl ${rating >= s ? 'text-amber-400' : 'text-slate-300'}`}>★</button>
-          ))}
+      {note.file_type === "markdown" && note.markdown_content && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h2 className="font-semibold text-slate-900 mb-4">Content</h2>
+          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(note.markdown_content) }} />
         </div>
-        <button onClick={submitRating} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Submit rating</button>
-      </div>
+      )}
 
-      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-6">
-        <h2 className="text-lg font-semibold mb-4">Leave a review</h2>
-        <textarea value={review} onChange={(e) => setReview(e.target.value)} maxLength={500} placeholder="Share your thoughts..." className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-2" rows={3} />
-        <p className="text-xs text-slate-500 mb-3">{review.length}/500</p>
-        <button onClick={submitReview} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-blue-700">Submit review</button>
-      </div>
+      {note.tags && note.tags.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h2 className="font-semibold text-slate-900 mb-4">Tags</h2>
+          <div className="flex flex-wrap gap-2">
+            {note.tags.map((tag: string) => (
+              <span key={tag} className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm">{tag}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {reportOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-4 sm:p-6">
-            <h2 className="text-lg font-semibold mb-4">Report this note</h2>
-            <select value={reportCategory} onChange={(e) => setReportCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-3">
-              <option>Abuse</option>
-              <option>Incorrect/Misleading</option>
-              <option>Copyright</option>
-              <option>Other</option>
-            </select>
-            <textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="Additional details (optional)" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-4" rows={3} />
+      {showReport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="font-semibold text-slate-900 mb-4">Report this note</h2>
+            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Reason for report..." className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm mb-4" rows={4} />
             <div className="flex gap-2">
-              <button onClick={submitReport} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Submit report</button>
-              <button onClick={() => setReportOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Cancel</button>
+              <button onClick={submitReport} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Submit</button>
+              <button onClick={() => setShowReport(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-md text-sm hover:bg-slate-50">Cancel</button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
-}
-
-export function NoteDetail({ noteId }: { noteId: string }) {
-  return (
-    <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
-      <NoteDetailContent noteId={noteId} />
-    </Suspense>
   )
 }
