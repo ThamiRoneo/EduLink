@@ -29,8 +29,12 @@ export function Profile() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [avatarMsg, setAvatarMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [removingAvatar, setRemovingAvatar] = useState(false)
   const supabase = createClient()
   const router = useRouter()
+
+  const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"]
+  const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
   useEffect(() => {
     async function load() {
@@ -114,35 +118,53 @@ export function Profile() {
   }
 
   async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target
     try {
       setAvatarMsg(null)
-      setUploading(true)
-      if (!e.target.files || e.target.files.length === 0) return
-      const file = e.target.files[0]
+      if (!input.files || input.files.length === 0) return
+      const file = input.files[0]
       if (!user) return
-      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
-        setAvatarMsg({ type: "error", text: "Avatar must be a JPEG, PNG, WebP, or GIF image" })
+      if (!AVATAR_TYPES.includes(file.type)) {
+        setAvatarMsg({ type: "error", text: "Choose a PNG, JPG, or WebP image." })
         return
       }
-      if (file.size > 2 * 1024 * 1024) {
-        setAvatarMsg({ type: "error", text: "Avatar must be 2MB or smaller" })
+      if (file.size > AVATAR_MAX_BYTES) {
+        setAvatarMsg({ type: "error", text: "Image must be 5 MB or smaller." })
         return
       }
-      const fileExt = file.name.split(".").pop()
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+      setUploading(true)
+      const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"
+      const filePath = `${user.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true })
       if (uploadError) throw uploadError
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath)
       const { error: updateError } = await supabase.from("profiles").update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq("id", user.id)
       if (updateError) throw updateError
       setProfile({ ...profile, avatar_url: publicUrl })
-      setAvatarMsg({ type: "success", text: "Avatar updated" })
+      setAvatarMsg({ type: "success", text: "Avatar updated." })
     } catch (error) {
       console.error("Error uploading avatar:", error)
-      setAvatarMsg({ type: "error", text: "Error uploading avatar" })
+      setAvatarMsg({ type: "error", text: "Could not upload avatar. Try again." })
     } finally {
       setUploading(false)
-      e.target.value = ""
+      input.value = ""
+    }
+  }
+
+  async function removeAvatar() {
+    if (!user || !profile?.avatar_url) return
+    try {
+      setAvatarMsg(null)
+      setRemovingAvatar(true)
+      const { error } = await supabase.from("profiles").update({ avatar_url: null, updated_at: new Date().toISOString() }).eq("id", user.id)
+      if (error) throw error
+      setProfile({ ...profile, avatar_url: null })
+      setAvatarMsg({ type: "success", text: "Avatar removed." })
+    } catch (error) {
+      console.error("Error removing avatar:", error)
+      setAvatarMsg({ type: "error", text: "Could not remove avatar. Try again." })
+    } finally {
+      setRemovingAvatar(false)
     }
   }
 
@@ -177,19 +199,54 @@ export function Profile() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             {profile?.avatar_url ? (
-              <Image src={profile.avatar_url} alt="Avatar" width={56} height={56} className="h-14 w-14 rounded-full object-cover border border-slate-200" />
+              <Image
+                src={profile.avatar_url}
+                alt={`${profile?.display_name || "User"} avatar`}
+                width={56}
+                height={56}
+                className="h-14 w-14 rounded-full object-cover border border-slate-200"
+              />
             ) : (
-              <div className="h-14 w-14 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-lg font-semibold">
+              <div
+                className="h-14 w-14 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-lg font-semibold"
+                aria-hidden="true"
+              >
                 {(profile?.display_name || user?.email || "?").trim().charAt(0).toUpperCase()}
               </div>
             )}
             <div>
               <h2 className="text-xl font-bold text-slate-900">Profile</h2>
-              <label className="text-sm text-slate-600 hover:text-slate-900 cursor-pointer">
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={uploadAvatar} disabled={uploading} className="hidden" />
-                {uploading ? "Uploading..." : profile?.avatar_url ? "Change avatar" : "Upload avatar"}
-              </label>
-              {avatarMsg && <p className={`text-xs mt-1 ${avatarMsg.type === "success" ? "text-green-700" : "text-red-700"}`}>{avatarMsg.text}</p>}
+              <div className="flex items-center gap-3 mt-1">
+                <label className="text-sm text-slate-600 hover:text-slate-900 cursor-pointer rounded focus-within:ring-2 focus-within:ring-slate-400 focus-within:ring-offset-2">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                    onChange={uploadAvatar}
+                    disabled={uploading || removingAvatar}
+                    className="sr-only"
+                    aria-label="Upload profile avatar (PNG, JPG, or WebP, up to 5 MB)"
+                  />
+                  {uploading ? "Uploading..." : profile?.avatar_url ? "Change avatar" : "Upload avatar"}
+                </label>
+                {profile?.avatar_url && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    disabled={uploading || removingAvatar}
+                    className="text-sm text-slate-600 hover:text-slate-900 rounded focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    {removingAvatar ? "Removing..." : "Remove"}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">PNG, JPG, or WebP. Max 5 MB.</p>
+              <div aria-live="polite" aria-atomic="true">
+                {avatarMsg && (
+                  <p className={`text-xs mt-1 ${avatarMsg.type === "success" ? "text-green-700" : "text-red-700"}`} role={avatarMsg.type === "error" ? "alert" : "status"}>
+                    {avatarMsg.text}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           {!editing ? (
