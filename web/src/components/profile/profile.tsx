@@ -1,10 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+
+function avatarPathFromUrl(url: string | null | undefined) {
+  if (!url) return null
+  try {
+    const marker = "/storage/v1/object/public/avatars/"
+    const i = url.indexOf(marker)
+    return i >= 0 ? decodeURIComponent(url.slice(i + marker.length)) : null
+  } catch {
+    return null
+  }
+}
 
 export function Profile() {
   const [profile, setProfile] = useState<any>(null)
@@ -30,7 +41,7 @@ export function Profile() {
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [avatarMsg, setAvatarMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [removingAvatar, setRemovingAvatar] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"]
@@ -100,6 +111,7 @@ export function Profile() {
   async function saveProfile() {
     if (!user) return
     setSaving(true)
+    // TODO(P3.3): `institution` and `institution_affiliation` are dual-written for compatibility; confirm canonical field before schema cleanup.
     const payload = {
       display_name: form.display_name,
       bio: form.bio,
@@ -133,6 +145,7 @@ export function Profile() {
         return
       }
       setUploading(true)
+      const oldPath = avatarPathFromUrl(profile?.avatar_url)
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"
       const filePath = `${user.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true })
@@ -141,6 +154,9 @@ export function Profile() {
       const { error: updateError } = await supabase.from("profiles").update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq("id", user.id)
       if (updateError) throw updateError
       setProfile({ ...profile, avatar_url: publicUrl })
+      if (oldPath && oldPath !== filePath) {
+        await supabase.storage.from("avatars").remove([oldPath]).catch(() => {})
+      }
       setAvatarMsg({ type: "success", text: "Avatar updated." })
     } catch (error) {
       console.error("Error uploading avatar:", error)
@@ -156,9 +172,13 @@ export function Profile() {
     try {
       setAvatarMsg(null)
       setRemovingAvatar(true)
+      const oldPath = avatarPathFromUrl(profile.avatar_url)
       const { error } = await supabase.from("profiles").update({ avatar_url: null, updated_at: new Date().toISOString() }).eq("id", user.id)
       if (error) throw error
       setProfile({ ...profile, avatar_url: null })
+      if (oldPath) {
+        await supabase.storage.from("avatars").remove([oldPath]).catch(() => {})
+      }
       setAvatarMsg({ type: "success", text: "Avatar removed." })
     } catch (error) {
       console.error("Error removing avatar:", error)

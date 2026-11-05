@@ -91,7 +91,7 @@ export function UploadForm() {
   const [existingFileUrl, setExistingFileUrl] = useState<string>("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const tagSuggestions = useMemo(() => {
     const base = new Set<string>()

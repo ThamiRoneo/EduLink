@@ -36,7 +36,7 @@ export function MyUploads() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [profile, setProfile] = useState<{ avatar_url?: string | null; display_name?: string | null } | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   async function load() {

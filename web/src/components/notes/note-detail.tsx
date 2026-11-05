@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { renderMarkdown } from "@/lib/markdown"
@@ -14,7 +14,7 @@ export function NoteDetail({ noteId }: { noteId: string }) {
   const [loading, setLoading] = useState(true)
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState("")
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   useEffect(() => {
