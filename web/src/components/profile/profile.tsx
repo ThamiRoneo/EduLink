@@ -28,6 +28,7 @@ export function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [pwSaving, setPwSaving] = useState(false)
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [avatarMsg, setAvatarMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -92,26 +93,56 @@ export function Profile() {
     router.refresh()
   }
 
+  async function saveProfile() {
+    if (!user) return
+    setSaving(true)
+    const payload = {
+      display_name: form.display_name,
+      bio: form.bio,
+      institution: form.institution,
+      institution_affiliation: form.institution,
+      faculty: form.faculty,
+      year_of_study: form.year_of_study,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from("profiles").update(payload).eq("id", user.id)
+    if (!error) {
+      setProfile({ ...profile, ...payload })
+      setEditing(false)
+    }
+    setSaving(false)
+  }
+
   async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     try {
+      setAvatarMsg(null)
       setUploading(true)
       if (!e.target.files || e.target.files.length === 0) return
       const file = e.target.files[0]
       if (!user) return
-      const fileExt = file.name.split('.').pop()
+      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+        setAvatarMsg({ type: "error", text: "Avatar must be a JPEG, PNG, WebP, or GIF image" })
+        return
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        setAvatarMsg({ type: "error", text: "Avatar must be 2MB or smaller" })
+        return
+      }
+      const fileExt = file.name.split(".").pop()
       const filePath = `${user.id}/${Date.now()}.${fileExt}`
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true })
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true })
       if (uploadError) throw uploadError
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
-      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq('id', user.id)
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath)
+      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq("id", user.id)
       if (updateError) throw updateError
       setProfile({ ...profile, avatar_url: publicUrl })
+      setAvatarMsg({ type: "success", text: "Avatar updated" })
     } catch (error) {
-      console.error('Error uploading avatar:', error)
-      alert('Error uploading avatar')
+      console.error("Error uploading avatar:", error)
+      setAvatarMsg({ type: "error", text: "Error uploading avatar" })
     } finally {
       setUploading(false)
-      e.target.value = ''
+      e.target.value = ""
     }
   }
 
@@ -144,7 +175,23 @@ export function Profile() {
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-900">Profile</h2>
+          <div className="flex items-center gap-4">
+            {profile?.avatar_url ? (
+              <Image src={profile.avatar_url} alt="Avatar" width={56} height={56} className="h-14 w-14 rounded-full object-cover border border-slate-200" />
+            ) : (
+              <div className="h-14 w-14 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-lg font-semibold">
+                {(profile?.display_name || user?.email || "?").trim().charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Profile</h2>
+              <label className="text-sm text-slate-600 hover:text-slate-900 cursor-pointer">
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={uploadAvatar} disabled={uploading} className="hidden" />
+                {uploading ? "Uploading..." : profile?.avatar_url ? "Change avatar" : "Upload avatar"}
+              </label>
+              {avatarMsg && <p className={`text-xs mt-1 ${avatarMsg.type === "success" ? "text-green-700" : "text-red-700"}`}>{avatarMsg.text}</p>}
+            </div>
+          </div>
           {!editing ? (
             <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border border-slate-200 rounded-md hover:bg-slate-50">Edit</button>
           ) : (
