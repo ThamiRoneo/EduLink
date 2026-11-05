@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 type RecentView = {
   id: string
@@ -36,7 +37,7 @@ export function Favorites() {
       setUserId(user.id)
       const { data } = await supabase
         .from("favorites")
-        .select("note_id, notes(*)")
+        .select("note_id, notes(*, uploader:profiles(avatar_url, display_name, institution_affiliation))")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
       setFavorites(data || [])
@@ -148,7 +149,8 @@ export function Favorites() {
         (note.title || "").toLowerCase().includes(qq) ||
         (note.course_code || "").toLowerCase().includes(qq) ||
         (note.course_name || "").toLowerCase().includes(qq) ||
-        (note.institution || "").toLowerCase().includes(qq)
+        (note.institution || "").toLowerCase().includes(qq) ||
+        (note.uploader?.display_name || "").toLowerCase().includes(qq)
       )
     })
   }, [favorites, q, documentType, course])
@@ -188,7 +190,7 @@ export function Favorites() {
         <>
           <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-2 flex-1">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by title, course code, institution..." className="flex-1 px-3 py-2 border border-slate-200 rounded-md text-sm" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by title, course code, institution, uploader..." className="flex-1 px-3 py-2 border border-slate-200 rounded-md text-sm" />
               {documentTypes.length > 0 && (<select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm"><option value="">All document types</option>{documentTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}</select>)}
               {courses.length > 0 && (<select value={course} onChange={(e) => setCourse(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-md text-sm"><option value="">All courses</option>{courses.map((c) => <option key={c} value={c}>{c}</option>)}</select>)}
             </div>
@@ -214,6 +216,10 @@ export function Favorites() {
                     </button>
                     <Link href={`/notes/${note.id}`} className="block p-4 pl-8">
                       <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 pr-6">{note.title}</h3>
+                      <div className="flex items-center gap-2 text-xs text-slate-600 mb-1">
+                        <UserAvatar avatarUrl={note.uploader?.avatar_url} name={note.uploader?.display_name} size={16} className="border border-slate-200" />
+                        <span className="truncate">{note.uploader?.display_name || "Unknown uploader"}</span>
+                      </div>
                       <div className="text-xs text-slate-600 space-y-1">
                         {note.institution && <p>{note.institution}</p>}
                         {(note.course_code || note.course_name) && <p>{note.course_code}{note.course_code && note.course_name ? " • " : ""}{note.course_name}</p>}

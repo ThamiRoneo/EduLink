@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 export function ModerationQueue() {
   const [notes, setNotes] = useState<any[]>([])
@@ -32,7 +33,7 @@ export function ModerationQueue() {
       }
       const { data, error } = await supabase
         .from("notes")
-        .select("*")
+        .select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)")
         .eq("status", "pending")
         .order("created_at", { ascending: true })
       if (error) setActionError("Could not load moderation queue.")
@@ -96,6 +97,13 @@ export function ModerationQueue() {
         notes.map((note) => (
           <div key={note.id} className="bg-white border border-slate-200 rounded-lg p-4">
             <h3 className="font-semibold text-slate-900 mb-2">{note.title}</h3>
+            <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+              <UserAvatar avatarUrl={note.uploader?.avatar_url} name={note.uploader?.display_name} size={20} className="border border-slate-200" />
+              <span>
+                {note.uploader?.display_name || "Unknown uploader"}
+                {note.uploader?.institution_affiliation ? ` • ${note.uploader.institution_affiliation}` : ""}
+              </span>
+            </div>
             <div className="text-sm text-slate-600 space-y-1 mb-4">
               <p>{note.institution} • {note.course_code} • {note.course_name}</p>
               <p>Year: {note.year} • File: {note.file_type.toUpperCase()} ({(note.file_size / 1024 / 1024).toFixed(2)} MB)</p>

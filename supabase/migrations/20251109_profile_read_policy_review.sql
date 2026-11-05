@@ -1,0 +1,183 @@
+-- 20251109_profile_read_policy_review.sql
+-- REVIEW ONLY — DO NOT APPLY TO DB.
+-- Purpose: Audit queries reading profiles for other users and prepare a safe
+-- public/auth read policy for limited uploader display fields while protecting
+-- sensitive fields (email, role, etc.). This file is a verification checklist
+-- and candidate migration SQL for review.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- CURRENT STATE (as of 20251108 migrations)
+-- ══════════════════════════════════════════════════════════════════════════════
+-- Table: public.profiles
+--   Columns (relevant): id, email, display_name, role, institution_affiliation,
+--     email_flag_acza, bio, institution, faculty, year_of_study, avatar_url,
+--     created_at, updated_at
+--   RLS enabled: yes
+--   Policies:
+--     "Public profiles are viewable by everyone"  ON profiles FOR SELECT USING (true)
+--     "Users can update own profile"              ON profiles FOR UPDATE USING (auth.uid() = id)
+--
+-- RISK: SELECT USING (true) exposes ALL columns to anyone (anon + authenticated),
+-- including email, role, email_flag_acza. App code only requests display fields,
+-- but PostgREST/RLS policy allows full-row reads; a direct API caller can select
+-- sensitive columns.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- AUDIT: CODE QUERIES READING PROFILES (other users / joins)
+-- ══════════════════════════════════════════════════════════════════════════════
+--
+-- [A] Browse notes (public/other-user display) — SAFE FIELDS ONLY
+--   web/src/components/browse/browse-notes.tsx:179,225
+--     .select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)")
+--   Reads: avatar_url, display_name, institution_affiliation (uploader = other user)
+--   RLS impact: works under current USING(true); would work with restricted
+--     column-level access if implemented via view/RPC or if PostgREST column
+--     privileges/policy approach allows. Direct table SELECT with column-level RLS
+--     restriction requires careful design (see candidates below).
+--   Assumes fields exist: avatar_url (added 20251108), display_name, institution_affiliation.
+--
+-- [B] Note detail (public/other-user display) — SAFE FIELDS ONLY
+--   web/src/components/notes/note-detail.tsx:25
+--     .select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)")
+--   Reads: avatar_url, display_name, institution_affiliation
+--   RLS impact: same as [A].
+--   UI fallback: uses note.institution when uploader fields missing — resilient.
+--
+-- [C] Own profile reads (self) — FULL ROW / SENSITIVE FIELDS OK FOR SELF
+--   web/src/components/profile/profile.tsx:47  select("*") eq id = user.id
+--   web/src/app/page.tsx:53                   select("avatar_url") eq id = user.id
+--   web/src/app/(app)/layout-client.tsx:27   select("avatar_url") eq id = user.id
+--   web/src/app/(moderator)/moderation/page.tsx:23  select("role") eq id = user.id
+--   web/src/components/moderation/moderation-queue.tsx:28 select("role") eq id = user.id
+--   RLS impact: self reads must remain allowed. Any policy change MUST preserve
+--     `auth.uid() = id` access (or equivalent) for own profile, including role.
+--
+-- [D] Own profile writes — OK
+--   profile.tsx:112,141,159 update profiles eq id = user.id
+--   RLS impact: covered by existing UPDATE policy.
+--
+-- [E] Moderation queue — NO UPLOADER PROFILE JOIN (potential product gap, not RLS block)
+--   web/src/components/moderation/moderation-queue.tsx:35-38
+--     .from("notes").select("*").eq("status","pending")  -- no uploader join
+--   RLS impact: none today. If adding uploader display for moderators, join must
+--     work for moderator role; consider whether moderators need email/role of
+--     uploader (sensitive) — define explicitly.
+--
+-- [F] No other cross-user profile reads found in web/src (grep: avatar_url|
+--     display_name|institution_affiliation, from("profiles")).
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- SENSITIVE vs SAFE DISPLAY FIELDS (proposed classification)
+-- ══════════════════════════════════════════════════════════════════════════════
+-- SAFE for public uploader display (browse/note detail):
+--   id, display_name, avatar_url, institution_affiliation, institution, faculty
+--   (verify: bio/year_of_study — product decision; exclude if considered private)
+-- SENSITIVE / restrict from public reads:
+--   email, role, email_flag_acza, created_at/updated_at (optional; low risk but unnecessary)
+-- ALWAYS allowed to self (auth.uid() = id): all columns.
+-- MODERATOR/ADMIN: define if they need uploader email/role for moderation actions;
+--   currently not queried. Prefer explicit server-side/RPC path if needed.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- CANDIDATE APPROACHES (choose one; verify against Supabase/PostgREST behavior)
+-- ══════════════════════════════════════════════════════════════════════════════
+--
+-- OPTION 1 (recommended, minimal app change): Public-safe VIEW + revoke direct anon
+-- exposure of sensitive columns via view usage; keep base table for self/mod.
+--   - Create `public.profile_public` view exposing only safe columns.
+--   - Grant SELECT on view to anon, authenticated.
+--   - Update app joins: `uploader:profile_public(...)` (PostgREST resolves FK if
+--     view has id; may require FK-like relationship or use embedded resource hint
+--     / explicit join pattern — VERIFY in Supabase).
+--   - Tighten base `profiles` SELECT policy to self + moderator/admin (if needed).
+--   - Caveat: PostgREST FK embedding to views depends on config/version; test.
+--
+-- OPTION 2: SECURITY DEFINER RPC returning safe fields for given profile IDs.
+--   - `get_public_profiles(ids uuid[])` returns safe columns.
+--   - App replaces embedded join with batched RPC call — more code change.
+--   - Strongest isolation; no sensitive-column leak path.
+--
+-- OPTION 3: Column privileges (REVOKE SELECT on sensitive columns from anon/authenticated)
+--   - `REVOKE SELECT (email, role, email_flag_acza) ON profiles FROM anon, authenticated;`
+--   - Keep `SELECT USING (true)` or tighten row policy; column privs enforce field limit.
+--   - PostgREST respects column privileges — VERIFY behavior with embedded selects
+--     (requesting a revoked column should error; app must not request it).
+--   - Self reads selecting "*" would break for revoked columns — need explicit column
+--     list for self or GRANT back via role/function; COMPLEX. Prefer Option 1.
+--
+-- OPTION 4: Split tables (profiles_public + profiles_private) — larger migration.
+--   - Clean separation; more moving parts and backfill. Defer unless needed.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- CANDIDATE MIGRATION SQL (OPTION 1 sketch — REVIEW/TEST BEFORE APPLYING)
+-- ══════════════════════════════════════════════════════════════════════════════
+--
+-- BEGIN;
+--
+-- -- 1) Public-safe projection (adjust safe columns per product decision)
+-- CREATE OR REPLACE VIEW public.profile_public AS
+-- SELECT
+--   id,
+--   display_name,
+--   avatar_url,
+--   COALESCE(institution, institution_affiliation) AS institution_display,
+--   institution_affiliation
+-- FROM public.profiles;
+--
+-- -- If using security_invoker (PG15+), ensure base policies allow required reads;
+-- -- otherwise view runs as owner. Evaluate carefully.
+-- -- ALTER VIEW public.profile_public SET (security_invoker = true);
+--
+-- GRANT SELECT ON public.profile_public TO anon, authenticated;
+--
+-- -- 2) Tighten base profiles SELECT (self + privileged roles)
+-- DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+-- CREATE POLICY "Users can view own profile"
+--   ON public.profiles FOR SELECT
+--   USING (auth.uid() = id);
+-- CREATE POLICY "Moderators can view profiles"
+--   ON public.profiles FOR SELECT
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM public.profiles p
+--       WHERE p.id = auth.uid() AND p.role IN ('moderator', 'admin')
+--     )
+--   );
+-- -- NOTE: The moderator policy self-references profiles; verify no RLS recursion
+-- -- issues in your Supabase setup (SECURITY DEFINER helper function may be safer).
+--
+-- -- 3) App changes required if adopting Option 1:
+-- --   browse-notes.tsx / note-detail.tsx:
+-- --     uploader:profile_public(avatar_url, display_name, institution_affiliation)
+-- --   (and/or institution_display) — TEST PostgREST embedding.
+--
+-- COMMIT;
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- VERIFICATION CHECKLIST (run before/after applying any migration)
+-- ══════════════════════════════════════════════════════════════════════════════
+-- [ ] Confirm current live policies in DB match migration history:
+--     SELECT polname, cmd, qual, with_check FROM pg_policies WHERE tablename='profiles';
+-- [ ] Anon/authenticated cannot read profiles.email, role, email_flag_acza via API.
+-- [ ] Browse page loads uploader avatar/name/affiliation for approved notes (anon).
+-- [ ] Note detail loads uploader display fields (anon).
+-- [ ] Logged-in user can load own full profile in /profile (including role-sensitive UI).
+-- [ ] Moderator can access /moderation (role read from own profile succeeds).
+-- [ ] Moderator queue actions still work (notes UPDATE RLS unchanged).
+-- [ ] Embedded join `uploader:profiles(...)` or replacement works with chosen approach.
+-- [ ] No query requests fields blocked by RLS/column privileges (check 400/42501 errors).
+-- [ ] Storage/avatar behavior unchanged (avatars bucket policies are separate).
+-- [ ] If adding moderator view of uploader identity, document which sensitive fields
+--     are intentionally exposed and enforce via server-side path if appropriate.
+-- [ ] Add/update automated tests or smoke checks for browse + note detail + profile.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+-- QUERIES THAT ASSUME FIELDS RLS MAY BLOCK (if tightened)
+-- ══════════════════════════════════════════════════════════════════════════════
+-- - Any future `select('*')` on other users' profiles will fail/omit under column
+--   restrictions; current code does NOT do this (self-only select('*') at profile.tsx:47).
+-- - Adding uploader email/role to browse/moderation UI would require explicit policy.
+-- - `uploader:profiles(...)` embedded selects depend on base table SELECT policy;
+--   tightening row access breaks these joins unless using a public view/RPC.
+--
+-- END OF REVIEW FILE.

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected"
 
@@ -33,6 +34,7 @@ export function MyUploads() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [profile, setProfile] = useState<{ avatar_url?: string | null; display_name?: string | null } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -42,12 +44,16 @@ export function MyUploads() {
       router.push("/login")
       return
     }
-    const { data } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("uploader_id", user.id)
-      .order("created_at", { ascending: false })
+    const [{ data }, { data: profileData }] = await Promise.all([
+      supabase
+        .from("notes")
+        .select("*")
+        .eq("uploader_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).maybeSingle(),
+    ])
     setUploads(data || [])
+    setProfile(profileData ?? null)
     setLoading(false)
   }
 
@@ -108,6 +114,12 @@ export function MyUploads() {
 
   return (
     <div className="space-y-4">
+      {profile && (
+        <div className="flex items-center gap-2 text-sm text-slate-700">
+          <UserAvatar avatarUrl={profile.avatar_url} name={profile.display_name} size={24} className="border border-slate-200" />
+          <span className="font-medium">{profile.display_name || "Your uploads"}</span>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex gap-2 flex-wrap">
           {(["all", "pending", "approved", "rejected"] as StatusFilter[]).map((s) => (
