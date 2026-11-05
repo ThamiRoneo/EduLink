@@ -191,7 +191,42 @@ export function Profile() {
     setPwSaving(false)
   }
 
-  if (loading) return <div className="text-center py-8">Loading...</div>
+  if (loading) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading profile">
+        <div className="bg-white border border-slate-200 rounded-lg p-6 animate-pulse">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-14 w-14 bg-slate-200 rounded-full" />
+            <div className="space-y-2">
+              <div className="h-6 bg-slate-200 rounded w-24" />
+              <div className="h-4 bg-slate-100 rounded w-28" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-4 bg-slate-100 rounded w-56" />
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-6 animate-pulse">
+          <div className="h-5 bg-slate-200 rounded w-24 mb-4" />
+          <div className="flex gap-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-9 w-24 bg-slate-100 rounded-md" />
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-6 animate-pulse">
+          <div className="h-5 bg-slate-200 rounded w-32 mb-4" />
+          <div className="space-y-3 max-w-md">
+            <div className="h-9 bg-slate-100 rounded-md" />
+            <div className="h-9 bg-slate-100 rounded-md" />
+            <div className="h-9 w-36 bg-slate-200 rounded-md" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

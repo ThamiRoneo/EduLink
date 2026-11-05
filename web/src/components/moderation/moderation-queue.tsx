@@ -61,7 +61,7 @@ export function ModerationQueue() {
   async function reject(noteId: string) {
     if (!user) return
     if (!reason.trim()) {
-      alert("Rejection reason is required")
+      setActionError("Rejection reason is required")
       return
     }
     setActionError(null)
