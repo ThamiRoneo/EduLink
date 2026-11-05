@@ -1,6 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PROTECTED_PREFIXES = ['/profile', '/upload', '/my-uploads', '/favorites', '/moderation']
+
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -23,6 +29,18 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user && isProtectedPath(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`)
+    const redirect = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c))
+    return redirect
+  }
+
   return supabaseResponse
 }

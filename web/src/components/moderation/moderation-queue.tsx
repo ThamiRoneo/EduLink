@@ -7,50 +7,73 @@ import { useRouter } from "next/navigation"
 export function ModerationQueue() {
   const [notes, setNotes] = useState<any[]>([])
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [reason, setReason] = useState("")
+  const [actionError, setActionError] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) {
-        router.push("/login")
+        router.replace("/login?next=/moderation")
         return
       }
       setUser(user)
-      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-      setProfile(profileData)
+      // Defense-in-depth: server page gates access; client rechecks because direct Supabase calls are user-scoped.
+      const { data: profileData } = await supabase.from("profiles").select("role").eq("id", user.id).single()
       if (profileData?.role !== "moderator" && profileData?.role !== "admin") {
-        router.push("/browse")
+        router.replace("/browse")
         return
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notes")
         .select("*")
         .eq("status", "pending")
         .order("created_at", { ascending: true })
+      if (error) setActionError("Could not load moderation queue.")
       setNotes(data || [])
       setLoading(false)
     }
     load()
-  }, [])
+  }, [router, supabase])
 
   async function approve(noteId: string) {
-    await supabase.from("notes").update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user.id }).eq("id", noteId)
-    setNotes(notes.filter(n => n.id !== noteId))
+    if (!user) return
+    setActionError(null)
+    const { error } = await supabase
+      .from("notes")
+      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user.id })
+      .eq("id", noteId)
+      .eq("status", "pending")
+    if (error) {
+      setActionError("Approve failed. Check permissions/policy.")
+      return
+    }
+    setNotes(notes.filter((n) => n.id !== noteId))
   }
 
   async function reject(noteId: string) {
+    if (!user) return
     if (!reason.trim()) {
       alert("Rejection reason is required")
       return
     }
-    await supabase.from("notes").update({ status: "rejected", rejection_reason: reason }).eq("id", noteId)
-    setNotes(notes.filter(n => n.id !== noteId))
+    setActionError(null)
+    const { error } = await supabase
+      .from("notes")
+      .update({ status: "rejected", rejection_reason: reason.trim() })
+      .eq("id", noteId)
+      .eq("status", "pending")
+    if (error) {
+      setActionError("Reject failed. Check permissions/policy.")
+      return
+    }
+    setNotes(notes.filter((n) => n.id !== noteId))
     setRejectingId(null)
     setReason("")
   }
@@ -59,6 +82,9 @@ export function ModerationQueue() {
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{actionError}</div>
+      )}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <p className="text-sm text-slate-600">Pending submissions: {notes.length}</p>
       </div>
