@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -12,13 +13,21 @@ export default function AppLayoutClient({
 }) {
   const [userMenu, setUserMenu] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarError, setAvatarError] = useState(false)
   const supabase = createClient()
   const pathname = usePathname()
   const router = useRouter()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUser(user)
+      if (user) {
+        const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).single()
+        setAvatarUrl(data?.avatar_url ?? null)
+      }
+    })
   }, [supabase])
 
   useEffect(() => {
@@ -62,10 +71,14 @@ export default function AppLayoutClient({
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setUserMenu(!userMenu)} className={pathname?.startsWith("/profile") ? "text-primary" : "text-foreground hover:text-primary"} aria-label="Profile menu">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
+                  {avatarUrl && !avatarError ? (
+                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  )}
                 </button>
                 {userMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
@@ -85,10 +98,14 @@ export default function AppLayoutClient({
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setUserMenu(!userMenu)} className="text-foreground hover:text-primary" aria-label="Profile menu">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
+                  {avatarUrl && !avatarError ? (
+                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  )}
                 </button>
                 {userMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">

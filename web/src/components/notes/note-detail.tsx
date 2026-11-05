@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/lib/supabase/client"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 
 function NoteDetailContent({ noteId }: { noteId: string }) {
@@ -21,7 +22,7 @@ function NoteDetailContent({ noteId }: { noteId: string }) {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
 
-      const { data } = await supabase.from("notes").select("*").eq("id", noteId).single()
+      const { data } = await supabase.from("notes").select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)").eq("id", noteId).single()
       setNote(data)
 
       if (data && data.status === "approved") {
@@ -83,6 +84,18 @@ function NoteDetailContent({ noteId }: { noteId: string }) {
         <div className="text-sm text-slate-600 space-y-1 mb-4">
           <p>{note.institution} • {note.course_code} • {note.course_name}</p>
           <p>Year: {note.year} • Views: {note.view_count || 0}</p>
+          {note.uploader && (
+            <div className="flex items-center gap-2 pt-1">
+              {note.uploader.avatar_url ? (
+                <Image src={note.uploader.avatar_url} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover border border-slate-200" />
+              ) : (
+                <span className="h-5 w-5 rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600 flex items-center justify-center shrink-0">
+                  {(note.uploader.display_name || note.institution || "?").trim().charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span>{note.uploader.institution_affiliation || note.uploader.display_name || note.institution}</span>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           {(note.tags || []).map((tag: string) => (
