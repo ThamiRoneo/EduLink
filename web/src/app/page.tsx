@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -36,6 +37,8 @@ const CAMPUS_SLIDES = [
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
   const [open, setOpen] = useState(false);
   const [filterInst, setFilterInst] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -44,7 +47,13 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUser(user);
+      if (user) {
+        const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).single();
+        setAvatarUrl(data?.avatar_url ?? null);
+      }
+    });
   }, [supabase]);
 
   useEffect(() => {
@@ -89,10 +98,14 @@ export default function Home() {
                   className="flex items-center gap-2 text-black hover:opacity-80"
                   aria-label="Profile menu"
                 >
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
+                  {avatarUrl && !avatarError ? (
+                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  )}
                   <span className="text-sm hidden sm:inline">{user.user_metadata?.display_name || user.email}</span>
                 </button>
                 {open && (

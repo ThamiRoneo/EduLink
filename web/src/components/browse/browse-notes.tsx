@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -31,8 +32,9 @@ type Note = {
   document_type?: string
   uploader_id?: string
   uploader?: {
-    institution_affiliation?: string
+    avatar_url?: string | null
     display_name?: string
+    institution_affiliation?: string
   }
 }
 
@@ -174,7 +176,7 @@ export function BrowseNotes() {
     setLoading(true)
     let query = supabase
       .from("notes")
-      .select("*, uploader:profiles(display_name, institution_affiliation)", { count: "exact" })
+      .select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)", { count: "exact" })
       .eq("status", "approved")
 
     if (sort === "most_viewed" || sort === "views") {
@@ -220,7 +222,7 @@ export function BrowseNotes() {
     setSuggestionsLoading(true)
     let query = supabase
       .from("notes")
-      .select("*, uploader:profiles(display_name, institution_affiliation)")
+      .select("*, uploader:profiles(avatar_url, display_name, institution_affiliation)")
       .eq("status", "approved")
 
     const hasContext = filters.institution || filters.course_code || filters.course_id || filters.faculty || filters.department || filters.tag
@@ -540,7 +542,16 @@ export function BrowseNotes() {
                   </div>
                   <div className="text-xs text-slate-600 space-y-1 mb-2">
                     <p>{note.course_code} • {note.course_name}</p>
-                    <p className="text-slate-500">{cred}{yearCred ? ` • ${yearCred}` : ""}</p>
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      {note.uploader?.avatar_url ? (
+                        <Image src={note.uploader.avatar_url} alt="" width={16} height={16} className="h-4 w-4 rounded-full object-cover border border-slate-200" />
+                      ) : (
+                        <span className="h-4 w-4 rounded-full bg-slate-200 text-[9px] font-semibold text-slate-600 flex items-center justify-center shrink-0">
+                          {(note.uploader?.display_name || cred || "?").trim().charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="truncate">{cred}{yearCred ? ` • ${yearCred}` : ""}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 mb-2">
                     {note.document_type && (
