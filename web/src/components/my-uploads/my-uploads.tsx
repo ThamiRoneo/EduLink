@@ -34,6 +34,7 @@ export function MyUploads() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [profile, setProfile] = useState<{ avatar_url?: string | null; display_name?: string | null } | null>(null)
   const supabase = createClient()
   const router = useRouter()
@@ -66,6 +67,7 @@ export function MyUploads() {
     const confirmed = confirm("Delete this pending upload? This cannot be undone.")
     if (!confirmed) return
     setDeletingId(note.id)
+    setActionError(null)
     try {
       const { error } = await supabase.from("notes").delete().eq("id", note.id).eq("uploader_id", note.uploader_id)
       if (error) throw error
@@ -76,7 +78,7 @@ export function MyUploads() {
       }
       setUploads((prev) => prev.filter((u) => u.id !== note.id))
     } catch (err: any) {
-      alert(err?.message || "Failed to delete upload")
+      setActionError(err?.message || "Failed to delete upload")
     } finally {
       setDeletingId(null)
     }
@@ -119,6 +121,11 @@ export function MyUploads() {
           <UserAvatar avatarUrl={profile.avatar_url} name={profile.display_name} size={24} className="border border-slate-200" />
           <span className="font-medium">{profile.display_name || "Your uploads"}</span>
         </div>
+      )}
+      {actionError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {actionError}
+        </p>
       )}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex gap-2 flex-wrap">

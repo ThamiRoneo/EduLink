@@ -24,6 +24,7 @@ export function Favorites() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [recentViews, setRecentViews] = useState<RecentView[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -98,7 +99,8 @@ export function Favorites() {
     }
     try {
       await navigator.clipboard.writeText(url)
-      alert("Collection link copied to clipboard")
+      setNotice("Collection link copied to clipboard")
+      setTimeout(() => setNotice(null), 3000)
     } catch {
       prompt("Copy this collection link:", url)
     }
@@ -201,6 +203,11 @@ export function Favorites() {
               {selected.size > 0 && (<button onClick={bulkRemove} disabled={bulkBusy} className="px-2 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">Remove {selected.size}</button>)}
             </div>
           </div>
+          {notice && (
+            <p role="status" aria-live="polite" className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+              {notice}
+            </p>
+          )}
           {filtered.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-sm text-slate-600">No favorites match your filters.</div>
           ) : (

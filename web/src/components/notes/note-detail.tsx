@@ -78,7 +78,43 @@ export function NoteDetail({ noteId }: { noteId: string }) {
     setReportReason("")
   }
 
-  if (loading) return <div className="text-center py-8">Loading...</div>
+  if (loading) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading note">
+        <div className="bg-white border border-slate-200 rounded-lg p-6 animate-pulse">
+          <div className="h-7 bg-slate-200 rounded w-2/3 mb-4" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 bg-slate-100 rounded w-16" />
+                <div className="h-4 bg-slate-200 rounded w-24" />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 mb-6 p-3 bg-slate-50 rounded-lg">
+            <div className="h-10 w-10 bg-slate-200 rounded-full" />
+            <div className="space-y-2">
+              <div className="h-4 bg-slate-200 rounded w-32" />
+              <div className="h-3 bg-slate-100 rounded w-24" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-24 bg-slate-200 rounded-md" />
+            <div className="h-9 w-24 bg-slate-100 rounded-md" />
+            <div className="h-9 w-20 bg-slate-100 rounded-md" />
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-6 animate-pulse">
+          <div className="h-5 bg-slate-200 rounded w-32 mb-4" />
+          <div className="flex gap-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-8 w-8 bg-slate-100 rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (!note) return <div className="text-center py-8">Note not found</div>
 
   return (
