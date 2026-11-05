@@ -25,7 +25,7 @@ export function Favorites() {
   const [userId, setUserId] = useState<string | null>(null)
   const [recentViews, setRecentViews] = useState<RecentView[]>([])
   const [notice, setNotice] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   useEffect(() => {
