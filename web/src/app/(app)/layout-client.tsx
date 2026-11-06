@@ -35,16 +35,16 @@ export default function AppLayoutClient({
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node
-      if (desktopMenuRef.current && !desktopMenuRef.current.contains(target)) {
+      if (desktopMenuOpen && desktopMenuRef.current && !desktopMenuRef.current.contains(target)) {
         setDesktopMenuOpen(false)
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+      if (mobileMenuOpen && mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         setMobileMenuOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+  }, [desktopMenuOpen, mobileMenuOpen])
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -88,9 +88,9 @@ export default function AppLayoutClient({
                   )}
                 </button>
                 {desktopMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
-                    <button onClick={() => { setDesktopMenuOpen(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
-                    <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
+                  <div onMouseDown={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
+                    <Link href="/profile" onClick={() => setDesktopMenuOpen(false)} className="block px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</Link>
+                    <button type="button" onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
               </div>
@@ -115,13 +115,13 @@ export default function AppLayoutClient({
                   )}
                 </button>
                 {mobileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
+                  <div onMouseDown={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
                     <Link href="/browse" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Browse</Link>
                     <Link href="/upload" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Upload</Link>
                     <Link href="/my-uploads" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>My Uploads</Link>
                     <Link href="/favorites" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Favorites</Link>
-                    <button onClick={() => { setMobileMenuOpen(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
-                    <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
+                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</Link>
+                    <button type="button" onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
               </div>
