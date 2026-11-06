@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const INSTITUTIONS = ["University of Pretoria", "University of Cape Town", "University of the Witwatersrand", "Rhodes University", "Stellenbosch University", "University of KwaZulu-Natal", "North-West University"];
 
@@ -38,7 +38,7 @@ const CAMPUS_SLIDES = [
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarError, setAvatarError] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [filterInst, setFilterInst] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -50,8 +50,10 @@ export default function Home() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user);
       if (user) {
-        const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).single();
-        setAvatarUrl(data?.avatar_url ?? null);
+        setDisplayName(user.user_metadata?.display_name || user.email || null);
+        const { data } = await supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).single();
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+        if (data?.display_name) setDisplayName(data.display_name);
       }
     });
   }, [supabase]);
@@ -65,13 +67,13 @@ export default function Home() {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (open && menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [open]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -98,18 +100,11 @@ export default function Home() {
                   className="flex items-center gap-2 text-black hover:opacity-80"
                   aria-label="Profile menu"
                 >
-                  {avatarUrl && !avatarError ? (
-                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  )}
-                  <span className="text-sm hidden sm:inline">{user.user_metadata?.display_name || user.email}</span>
+                  <UserAvatar avatarUrl={avatarUrl} name={displayName || user.user_metadata?.display_name || user.email} size={24} />
+                  <span className="text-sm hidden sm:inline">{displayName || user.user_metadata?.display_name || user.email}</span>
                 </button>
                 {open && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-black/10 rounded-md shadow-lg py-1 z-50">
+                  <div onMouseDown={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-black/10 rounded-md shadow-lg py-1 z-50">
                     <Link href="/browse" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setOpen(false)}>Browse</Link>
                     <Link href="/upload" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setOpen(false)}>Upload</Link>
                     <Link href="/my-uploads" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setOpen(false)}>My Uploads</Link>

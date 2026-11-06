@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { renderMarkdown } from "@/lib/markdown"
 import { UserAvatar } from "@/components/ui/user-avatar"
 
 export function NoteDetail({ noteId }: { noteId: string }) {
@@ -151,20 +150,6 @@ export function NoteDetail({ noteId }: { noteId: string }) {
           ))}
         </div>
       </div>
-
-      {note.file_type === "text" && note.text_content && (
-        <div className="bg-white border border-slate-200 rounded-lg p-6">
-          <h2 className="font-semibold text-slate-900 mb-4">Content</h2>
-          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(note.text_content) }} />
-        </div>
-      )}
-
-      {note.file_type === "markdown" && note.markdown_content && (
-        <div className="bg-white border border-slate-200 rounded-lg p-6">
-          <h2 className="font-semibold text-slate-900 mb-4">Content</h2>
-          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(note.markdown_content) }} />
-        </div>
-      )}
 
       {note.tags && note.tags.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-lg p-6">

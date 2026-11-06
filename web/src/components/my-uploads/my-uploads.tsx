@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { NoteCover } from "@/components/notes/note-cover"
+import { getNoteThumbnailUrl } from "@/lib/utils/note-thumbnail"
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected"
 
@@ -99,15 +101,18 @@ export function MyUploads() {
     return (
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 animate-pulse">
-            <div className="flex items-start justify-between mb-2 gap-3">
-              <div className="space-y-2 w-full">
-                <div className="h-4 bg-slate-200 rounded w-2/3" />
-                <div className="h-3 bg-slate-100 rounded w-1/2" />
+          <div key={i} className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-pulse">
+            <div className="aspect-[16/10] w-full bg-slate-100 border-b border-slate-100" />
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-2 gap-3">
+                <div className="space-y-2 w-full">
+                  <div className="h-4 bg-slate-200 rounded w-2/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+                <div className="h-5 w-16 bg-slate-100 rounded" />
               </div>
-              <div className="h-5 w-16 bg-slate-100 rounded" />
+              <div className="h-3 bg-slate-100 rounded w-1/3 mt-3" />
             </div>
-            <div className="h-3 bg-slate-100 rounded w-1/3 mt-3" />
           </div>
         ))}
       </div>
@@ -157,65 +162,74 @@ export function MyUploads() {
         </div>
       ) : (
         filteredUploads.map((note) => (
-          <div key={note.id} className="bg-white border border-slate-200 rounded-lg p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-slate-900">{note.title}</h3>
-                <p className="text-sm text-slate-600">
-                  {note.institution} • {note.course_code} • {note.year}
-                </p>
-              </div>
-              <span
-                className={`text-xs px-2 py-1 rounded ${
-                  note.status === "approved"
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : note.status === "rejected"
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : "bg-amber-50 text-amber-700 border border-amber-200"
-                }`}
-              >
-                {note.status}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-              {note.file_type && <span className="uppercase">{note.file_type}</span>}
-              {note.file_size ? <span>{formatFileSize(note.file_size)}</span> : null}
-              {note.created_at && <span>Uploaded {formatDate(note.created_at)}</span>}
-              {note.status === "approved" && note.approved_at && <span>Approved {formatDate(note.approved_at)}</span>}
-              {note.status === "approved" && (
-                <span>
-                  {(note.view_count ?? 0).toLocaleString()} views • {(note.download_count ?? 0).toLocaleString()} downloads
+          <div key={note.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <NoteCover
+              thumbnailUrl={getNoteThumbnailUrl(supabase, note.thumbnail_path)}
+              fileType={note.file_type}
+              documentType={note.document_type ?? note.title}
+              title={note.title}
+              className="border-b border-slate-100"
+            />
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{note.title}</h3>
+                  <p className="text-sm text-slate-600">
+                    {note.institution} • {note.course_code} • {note.year}
+                  </p>
+                </div>
+                <span
+                  className={`text-xs px-2 py-1 rounded ${
+                    note.status === "approved"
+                      ? "bg-green-50 text-green-700 border border-green-200"
+                      : note.status === "rejected"
+                      ? "bg-red-50 text-red-700 border border-red-200"
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                  }`}
+                >
+                  {note.status}
                 </span>
-              )}
-            </div>
-            {note.status === "rejected" && note.rejection_reason && (
-              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-xs text-red-900">
-                  <strong>Rejection reason:</strong> {note.rejection_reason}
-                </p>
               </div>
-            )}
-            {note.status === "approved" && (
-              <Link href={`/notes/${note.id}`} className="text-sm text-blue-600 hover:underline mt-3 inline-block touch-manipulation">
-                View note
-              </Link>
-            )}
-            {(note.status === "pending" || note.status === "rejected") && (
-              <div className="mt-3 flex gap-2 flex-wrap">
-                <Link href={`/upload?edit=${note.id}`} className="text-sm px-3 py-1 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">
-                  Edit
-                </Link>
-                {note.status === "pending" && (
-                  <button
-                    onClick={() => handleDelete(note)}
-                    disabled={deletingId === note.id}
-                    className="text-sm px-3 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deletingId === note.id ? "Deleting..." : "Delete"}
-                  </button>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                {note.file_type && <span className="uppercase">{note.file_type}</span>}
+                {note.file_size ? <span>{formatFileSize(note.file_size)}</span> : null}
+                {note.created_at && <span>Uploaded {formatDate(note.created_at)}</span>}
+                {note.status === "approved" && note.approved_at && <span>Approved {formatDate(note.approved_at)}</span>}
+                {note.status === "approved" && (
+                  <span>
+                    {(note.view_count ?? 0).toLocaleString()} views • {(note.download_count ?? 0).toLocaleString()} downloads
+                  </span>
                 )}
               </div>
-            )}
+              {note.status === "rejected" && note.rejection_reason && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-xs text-red-900">
+                    <strong>Rejection reason:</strong> {note.rejection_reason}
+                  </p>
+                </div>
+              )}
+              {note.status === "approved" && (
+                <Link href={`/notes/${note.id}`} className="text-sm text-blue-600 hover:underline mt-3 inline-block touch-manipulation">
+                  View note
+                </Link>
+              )}
+              {(note.status === "pending" || note.status === "rejected") && (
+                <div className="mt-3 flex gap-2 flex-wrap">
+                  <Link href={`/upload?edit=${note.id}`} className="text-sm px-3 py-1 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">
+                    Edit
+                  </Link>
+                  {note.status === "pending" && (
+                    <button
+                      onClick={() => handleDelete(note)}
+                      disabled={deletingId === note.id}
+                      className="text-sm px-3 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingId === note.id ? "Deleting..." : "Delete"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ))
       )}
