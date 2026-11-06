@@ -1,10 +1,10 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { usePathname, useRouter } from "next/navigation"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 export default function AppLayoutClient({
   children,
@@ -15,7 +15,7 @@ export default function AppLayoutClient({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [avatarError, setAvatarError] = useState(false)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const router = useRouter()
@@ -26,8 +26,10 @@ export default function AppLayoutClient({
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user)
       if (user) {
-        const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).single()
-        setAvatarUrl(data?.avatar_url ?? null)
+        setDisplayName(user.user_metadata?.display_name || user.email || null)
+        const { data } = await supabase.from("profiles").select("avatar_url, display_name").eq("id", user.id).single()
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url)
+        if (data?.display_name) setDisplayName(data.display_name)
       }
     })
   }, [supabase])
@@ -78,14 +80,7 @@ export default function AppLayoutClient({
             {user ? (
               <div className="relative" ref={desktopMenuRef}>
                 <button onClick={() => setDesktopMenuOpen(!desktopMenuOpen)} className={pathname?.startsWith("/profile") ? "text-primary" : "text-foreground hover:text-primary"} aria-label="Profile menu">
-                  {avatarUrl && !avatarError ? (
-                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  )}
+                  <UserAvatar avatarUrl={avatarUrl} name={displayName} size={24} />
                 </button>
                 {desktopMenuOpen && (
                   <div onMouseDown={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
@@ -105,14 +100,7 @@ export default function AppLayoutClient({
             {user ? (
               <div className="relative" ref={mobileMenuRef}>
                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-foreground hover:text-primary" aria-label="Profile menu">
-                  {avatarUrl && !avatarError ? (
-                    <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                      <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  )}
+                  <UserAvatar avatarUrl={avatarUrl} name={displayName} size={24} />
                 </button>
                 {mobileMenuOpen && (
                   <div onMouseDown={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
