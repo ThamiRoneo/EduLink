@@ -11,14 +11,16 @@ export default function AppLayoutClient({
 }: {
   children: React.ReactNode
 }) {
-  const [userMenu, setUserMenu] = useState(false)
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarError, setAvatarError] = useState(false)
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const router = useRouter()
-  const menuRef = useRef<HTMLDivElement>(null)
+  const desktopMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -32,8 +34,12 @@ export default function AppLayoutClient({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setUserMenu(false)
+      const target = e.target as Node
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(target)) {
+        setDesktopMenuOpen(false)
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+        setMobileMenuOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -42,7 +48,8 @@ export default function AppLayoutClient({
 
   async function signOut() {
     await supabase.auth.signOut()
-    setUserMenu(false)
+    setDesktopMenuOpen(false)
+    setMobileMenuOpen(false)
     router.push("/")
     router.refresh()
     window.location.reload()
@@ -69,8 +76,8 @@ export default function AppLayoutClient({
             <Link href="/my-uploads" className={linkClass("/my-uploads")}>My Uploads</Link>
             <Link href="/favorites" className={linkClass("/favorites")}>Favorites</Link>
             {user ? (
-              <div className="relative" ref={menuRef}>
-                <button onClick={() => setUserMenu(!userMenu)} className={pathname?.startsWith("/profile") ? "text-primary" : "text-foreground hover:text-primary"} aria-label="Profile menu">
+              <div className="relative" ref={desktopMenuRef}>
+                <button onClick={() => setDesktopMenuOpen(!desktopMenuOpen)} className={pathname?.startsWith("/profile") ? "text-primary" : "text-foreground hover:text-primary"} aria-label="Profile menu">
                   {avatarUrl && !avatarError ? (
                     <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
                   ) : (
@@ -80,9 +87,9 @@ export default function AppLayoutClient({
                     </svg>
                   )}
                 </button>
-                {userMenu && (
+                {desktopMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
-                    <button onClick={() => { setUserMenu(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
+                    <button onClick={() => { setDesktopMenuOpen(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
                     <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
@@ -96,8 +103,8 @@ export default function AppLayoutClient({
           </div>
           <div className="md:hidden flex items-center gap-2">
             {user ? (
-              <div className="relative" ref={menuRef}>
-                <button onClick={() => setUserMenu(!userMenu)} className="text-foreground hover:text-primary" aria-label="Profile menu">
+              <div className="relative" ref={mobileMenuRef}>
+                <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-foreground hover:text-primary" aria-label="Profile menu">
                   {avatarUrl && !avatarError ? (
                     <Image src={avatarUrl} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" onError={() => setAvatarError(true)} />
                   ) : (
@@ -107,13 +114,13 @@ export default function AppLayoutClient({
                     </svg>
                   )}
                 </button>
-                {userMenu && (
+                {mobileMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-border rounded-md shadow-lg py-1 z-50">
-                    <Link href="/browse" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Browse</Link>
-                    <Link href="/upload" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Upload</Link>
-                    <Link href="/my-uploads" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>My Uploads</Link>
-                    <Link href="/favorites" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setUserMenu(false)}>Favorites</Link>
-                    <button onClick={() => { setUserMenu(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
+                    <Link href="/browse" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Browse</Link>
+                    <Link href="/upload" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Upload</Link>
+                    <Link href="/my-uploads" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>My Uploads</Link>
+                    <Link href="/favorites" className="block px-4 py-2 text-sm text-foreground hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Favorites</Link>
+                    <button onClick={() => { setMobileMenuOpen(false); router.push('/profile'); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary">Profile</button>
                     <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary">Sign out</button>
                   </div>
                 )}
