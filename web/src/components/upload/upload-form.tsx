@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { generateNoteThumbnail } from "@/lib/utils/generate-note-thumbnail"
 import { useRouter, useSearchParams } from "next/navigation"
 
 async function computeFileHash(file: File): Promise<string> {
@@ -384,6 +385,7 @@ export function UploadForm() {
       let fileExt = originalNote?.file_type || ""
       let fileName = existingFileUrl
       let fileSize = originalNote?.file_size || 0
+      let thumbnailPath: string | null | undefined
 
       if (file) {
         fileExt = file.name.split('.').pop()?.toLowerCase() || ""
@@ -392,6 +394,27 @@ export function UploadForm() {
         setUploadProgress(30)
         const { error: uploadError } = await supabase.storage.from('notes').upload(fileName, file, { upsert: false })
         if (uploadError) throw uploadError
+        try {
+          if (file.type.startsWith("image/")) {
+            const thumbBlob = await generateNoteThumbnail(file)
+            if (thumbBlob) {
+              const thumbExt = thumbBlob.type === "image/webp" ? "webp" : "jpg"
+              const thumbPath = `${user.id}/${Date.now()}.${thumbExt}`
+              const { error: thumbErr } = await supabase.storage.from("note-thumbnails").upload(thumbPath, thumbBlob, {
+                upsert: false,
+                contentType: thumbBlob.type,
+              })
+              if (!thumbErr) {
+                thumbnailPath = thumbPath
+                if (editId && originalNote?.thumbnail_path && originalNote.thumbnail_path !== thumbPath) {
+                  try {
+                    await supabase.storage.from("note-thumbnails").remove([originalNote.thumbnail_path])
+                  } catch {}
+                }
+              }
+            }
+          }
+        } catch {}
         setUploadProgress(70)
       } else {
         setUploadProgress(70)
@@ -420,6 +443,7 @@ export function UploadForm() {
         ...(documentType ? { document_type: documentType } : {}),
         ...(faculty ? { faculty } : {}),
         ...(courseId ? { course_id: courseId } : {}),
+        ...(thumbnailPath ? { thumbnail_path: thumbnailPath } : {}),
       }
       if (editId) {
         delete baseData.uploader_id

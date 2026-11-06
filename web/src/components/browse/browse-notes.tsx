@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { NoteCover } from "@/components/notes/note-cover"
+import { getNoteThumbnailUrl } from "@/lib/utils/note-thumbnail"
 
 const DOCUMENT_TYPES = ["Handwritten Notes", "Lecture Slides", "Summary / Study Guide", "Textbook Excerpt", "Assignment / Problem Set", "Past Exam", "Lab Report", "Other"] as const
 const FILE_TYPES = [
@@ -42,6 +44,7 @@ type NoteRow = {
   view_count?: number
   download_count?: number
   rating_avg?: number | null
+  thumbnail_path?: string | null
   uploader?: {
     avatar_url?: string | null
     display_name?: string | null
@@ -380,12 +383,15 @@ export function BrowseNotes() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-3/4 mb-3" />
-              <div className="space-y-2">
-                <div className="h-3 bg-slate-100 rounded w-1/2" />
-                <div className="h-3 bg-slate-100 rounded w-2/3" />
-                <div className="h-3 bg-slate-100 rounded w-1/3" />
+            <div key={i} className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-pulse">
+              <div className="aspect-[16/10] bg-slate-100" />
+              <div className="p-4">
+                <div className="h-4 bg-slate-200 rounded w-3/4 mb-3" />
+                <div className="space-y-2">
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/3" />
+                </div>
               </div>
             </div>
           ))}
@@ -402,39 +408,42 @@ export function BrowseNotes() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {notes.map((note) => (
-              <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow block">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-semibold text-slate-900 line-clamp-2">{highlight(note.title)}</h3>
-                  {note.file_type && (
-                    <span className="shrink-0 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                      {note.file_type}
+              <Link key={note.id} href={`/notes/${note.id}`} className="bg-white border border-slate-200 rounded-lg overflow-hidden p-0 hover:shadow-sm transition-shadow block">
+                <NoteCover thumbnailUrl={getNoteThumbnailUrl(supabase, note.thumbnail_path)} fileType={note.file_type} documentType={note.document_type} title={note.title} />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-slate-900 line-clamp-2">{highlight(note.title)}</h3>
+                    {note.file_type && (
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {note.file_type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    {note.institution && <p className="truncate">{highlight(note.institution)}</p>}
+                    {(note.course_code || note.course_name) && (
+                      <p className="truncate">
+                        {highlight(note.course_code || "")}
+                        {note.course_code && note.course_name ? " • " : ""}
+                        {highlight(note.course_name || "")}
+                      </p>
+                    )}
+                    {note.document_type && <p className="text-purple-700">{note.document_type}</p>}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                    {typeof note.year === "number" && <span>{note.year}</span>}
+                    {note.rating_avg != null && <span>★ {Number(note.rating_avg).toFixed(1)}</span>}
+                    {typeof note.view_count === "number" && <span>{note.view_count.toLocaleString()} views</span>}
+                    {typeof note.download_count === "number" && <span>{note.download_count.toLocaleString()} downloads</span>}
+                    {note.file_size ? <span>{formatSize(note.file_size)}</span> : null}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-600">
+                    <UserAvatar avatarUrl={note.uploader?.avatar_url} name={note.uploader?.display_name} size={16} className="border border-slate-200" />
+                    <span className="truncate">
+                      {note.uploader?.display_name || "Unknown uploader"}
+                      {note.uploader?.institution_affiliation ? ` • ${note.uploader.institution_affiliation}` : ""}
                     </span>
-                  )}
-                </div>
-                <div className="space-y-1 text-xs text-slate-600">
-                  {note.institution && <p className="truncate">{highlight(note.institution)}</p>}
-                  {(note.course_code || note.course_name) && (
-                    <p className="truncate">
-                      {highlight(note.course_code || "")}
-                      {note.course_code && note.course_name ? " • " : ""}
-                      {highlight(note.course_name || "")}
-                    </p>
-                  )}
-                  {note.document_type && <p className="text-purple-700">{note.document_type}</p>}
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                  {typeof note.year === "number" && <span>{note.year}</span>}
-                  {note.rating_avg != null && <span>★ {Number(note.rating_avg).toFixed(1)}</span>}
-                  {typeof note.view_count === "number" && <span>{note.view_count.toLocaleString()} views</span>}
-                  {typeof note.download_count === "number" && <span>{note.download_count.toLocaleString()} downloads</span>}
-                  {note.file_size ? <span>{formatSize(note.file_size)}</span> : null}
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-600">
-                  <UserAvatar avatarUrl={note.uploader?.avatar_url} name={note.uploader?.display_name} size={16} className="border border-slate-200" />
-                  <span className="truncate">
-                    {note.uploader?.display_name || "Unknown uploader"}
-                    {note.uploader?.institution_affiliation ? ` • ${note.uploader.institution_affiliation}` : ""}
-                  </span>
+                  </div>
                 </div>
               </Link>
             ))}
